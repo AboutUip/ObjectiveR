@@ -1,0 +1,137 @@
+{
+  "Import": {
+    "prefix": "import",
+    "body": [
+      "import ${1:module};"
+    ],
+    "description": "Import a module"
+  },
+  "Version Directive": {
+    "prefix": "#VERSION",
+    "body": [
+      "#VERSION: ${1:1.0};"
+    ],
+    "description": "Insert #VERSION directive"
+  },
+  "Link Directive": {
+    "prefix": "#LINK",
+    "body": [
+      "#LINK: ${1:/};"
+    ],
+    "description": "Insert #LINK directive"
+  },
+  "deRfun Function": {
+    "prefix": "deRfun",
+    "body": [
+      "deRfun ${1:name}(${2:[int]arg}): ${3:void} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Define a deRfun function"
+  },
+  "Namespaced deRfun Function": {
+    "prefix": "deRfun::",
+    "body": [
+      "deRfun ${1:ns}::${2:name}(${3:[int]arg}): ${4:void} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Define a namespaced deRfun function"
+  },
+  "Main Function": {
+    "prefix": "main",
+    "body": [
+      "deRfun main(): void {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Insert main entry function"
+  },
+  "if Block": {
+    "prefix": "if",
+    "body": [
+      "if (${1:condition}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Insert if block"
+  },
+  "if else Block": {
+    "prefix": "ife",
+    "body": [
+      "if (${1:condition}) {",
+      "\t${2}",
+      "} else {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Insert if/else block"
+  },
+  "while Block": {
+    "prefix": "while",
+    "body": [
+      "while (${1:condition}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Insert while loop"
+  },
+  "for Block": {
+    "prefix": "for",
+    "body": [
+      "for (${1:init}; ${2:condition}; ${3:update}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Insert for loop"
+  },
+  "return Statement": {
+    "prefix": "ret",
+    "body": [
+      "return ${0};"
+    ],
+    "description": "Insert return statement"
+  },
+  "std rout": {
+    "prefix": "rout",
+    "body": [
+      "std::rout(${1:\"message\"});"
+    ],
+    "description": "Print using std::rout"
+  },
+  "Primitive int": {
+    "prefix": "int",
+    "body": "int",
+    "description": "Primitive type int"
+  },
+  "Primitive string": {
+    "prefix": "string",
+    "body": "string",
+    "description": "Primitive type string"
+  },
+  "Primitive boolean": {
+    "prefix": "boolean",
+    "body": "boolean",
+    "description": "Primitive type boolean"
+  },
+  "Primitive void": {
+    "prefix": "void",
+    "body": "void",
+    "description": "Primitive type void"
+  },
+  "Keyword public": {
+    "prefix": "public",
+    "body": "public",
+    "description": "Keyword public"
+  },
+  "Keyword private": {
+    "prefix": "private",
+    "body": "private",
+    "description": "Keyword private"
+  },
+  "Keyword static": {
+    "prefix": "static",
+    "body": "static",
+    "description": "Keyword static"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "name": "objective-r-file-support",
+  "displayName": "ObjectiveR File Support",
+  "description": "Recognize .obr/.mr files, provide syntax highlighting, and dedicated file icons.",
+  "icon": "icons/obr.svg",
+  "version": "0.0.1",
+  "main": "./extension.js",
+  "publisher": "kitepromiss",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "objective-r-obr",
+        "aliases": [
+          "ObjectiveR Obr",
+          "Obr"
+        ],
+        "extensions": [
+          ".obr"
+        ],
+        "icon": {
+          "light": "./icons/obr.svg",
+          "dark": "./icons/obr.svg"
+        },
+        "configuration": "./language-configuration-obr.json"
+      },
+      {
+        "id": "objective-r-mr",
+        "aliases": [
+          "ObjectiveR ModuleR",
+          "ModuleR"
+        ],
+        "extensions": [
+          ".mr"
+        ],
+        "icon": {
+          "light": "./icons/mr.svg",
+          "dark": "./icons/mr.svg"
+        },
+        "configuration": "./language-configuration-mr.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "objective-r-obr",
+        "scopeName": "source.objective-r",
+        "path": "./syntaxes/objective-r.tmLanguage.json"
+      },
+      {
+        "language": "objective-r-mr",
+        "scopeName": "source.objective-r",
+        "path": "./syntaxes/objective-r.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "objective-r-obr",
+        "path": "./snippets/obr.code-snippets"
+      },
+      {
+        "language": "objective-r-mr",
+        "path": "./snippets/mr.code-snippets"
+      }
+    ]
+  }
+}

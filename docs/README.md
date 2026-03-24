@@ -1,26 +1,61 @@
-# docs
+<div align="center">
 
-该目录用于集中维护 ObjectiveR（Obr）文档，尤其是语言规范。
+<img src="assets/obr-logo-wide.svg" alt="Obr" width="200" height="64"/>
 
-## 目前内容
+# 技术文档 · `docs/`
 
-- `spec/README.md`：语言规范索引
-- `spec/overview.md`：语言规范总览
-- `spec/preprocessor.md`：预处理指令规范
-- `spec/runtime.md`：执行模型规范
-- `spec/visibility.md`：可见性与访问修饰规范
-- `spec/static.md`：`static` 关键字规范
-- `spec/termination.md`：语句终止与换行规范
-- `spec/moduleR.md`：`.mr`（moduleR）文件规范
-- `spec/comments.md`：注释规范
-- `spec/types.md`：基础数据类型规范
-- `spec/scope.md`：作用域与标识符解析规范
-- `spec/operators.md`：运算符与隐性转化规范
-- `LANGUAGE_SPEC.md`：兼容入口（重定向到 `spec`）
+**Obr** 语言规范 · **BlinkEngine** 实现说明
+
+<br/>
+
+[`obr/`](obr/README.md) · [`blink/`](blink/README.md) · [仓库根 `README`](../README.md)
+
+</div>
+
+---
+
+## 目录
+
+| 路径 | 内容 |
+|:--|:--|
+| **[`obr/`](obr/README.md)** | ObjectiveR 语言规范（专题拆分） |
+| **[`blink/`](blink/README.md)** | BlinkEngine Java 实现（管线、追溯、错误码、源码对照） |
+| **[`assets/`](assets/README.md)** | 徽标与矢量资源（`obr-logo.svg` 等） |
+
+**编辑器扩展**（与解释器分仓打包）：[`Expansion/README.md`](../Expansion/README.md)
+
+---
+
+## 快速链接
+
+### 语言（`docs/obr/`）
+
+| | |
+|:--|:--|
+| [规范索引](obr/README.md) | 全部专题列表 |
+| [总览](obr/overview.md) | 范围、版本、分层 |
+| [执行模型](obr/runtime.md) | `main.obr`、根目录、`libs/`、`static var` |
+| [系统与 `libs`](obr/system.md) | `system.mr`、`std::rout` |
+| [作用域](obr/scope.md) · [运算符](obr/operators.md) | 解析与运算 |
+
+### 引擎（`docs/blink/`）
+
+| | |
+|:--|:--|
+| [**总索引**](blink/README.md) | 体例、职责表、追溯 |
+| [架构](blink/architecture.md) | 子包与数据流 |
+| [管线](blink/pipeline.md) | `Main` → `ObrInterpreter#run` |
+| [词法](blink/lexing.md) · [语法](blink/parsing.md) | `Lexer` · `Parser` |
+| [模块](blink/modules.md) | 项目、`libs`、装载 |
+| [语义](blink/semantic-binding.md) · [重载](blink/overload-resolution.md) | `SemanticBinder` · `NumericWidening` |
+| [运行时](blink/execution.md) | `RuntimeExecutor` |
+| [错误码](blink/errors.md) · [审计](blink/audit.md) | `E_*` · `InterpreterAuditLog` |
+| [实现范围](blink/implementation-scope.md) | 相对全集边界 |
+| [支撑类型](blink/supporting.md) · [源码对照](blink/inventory.md) | 工具类 · 每文件→文档 |
+
+---
 
 ## 维护约定
 
-- 语言语法、语义、类型系统等正式定义统一收敛到 `docs` 目录
-- 规范采用“总览 + 专题”多文档拆分维护
-- 新增语言特性时，优先更新对应专题文档，再更新实现与示例
-- 本目录下规范文档均按技术文档标准编写，只定义规则与判定，不讨论实现细节
+- **语言规则** → `docs/obr/`；**引擎实现** → `docs/blink/`。
+- 正文不标注「新增/旧版」；同类表格字段全库统一。

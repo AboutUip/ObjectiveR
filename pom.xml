@@ -7,11 +7,234 @@
     <groupId>com.kitepromiss</groupId>
     <artifactId>ObjectionR</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <name>BlinkEngine</name>
+    <description>ObjectiveR (Obr) reference interpreter — BlinkEngine</description>
 
     <properties>
         <maven.compiler.source>24</maven.compiler.source>
         <maven.compiler.target>24</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <junit.version>5.11.4</junit.version>
+        <main.class>com.kitepromiss.Main</main.class>
+        <!-- 与 products 目录约定：脚本在 products/，构建产物在 products/out/ -->
+        <products.out.dir>${project.basedir}/products/out</products.out.dir>
+        <!--
+          默认不跑测试、不编译测试源码（便于无 src/test 的检出树直接 package）。
+          若存在 src/test，则 profile「has-test-sources」激活并改回运行测试（见下方 profiles）。
+          命令行 -DskipTests=true 仍可临时跳过。
+        -->
+        <skipTests>true</skipTests>
+        <maven.test.skip>true</maven.test.skip>
     </properties>
+
+    <!--
+      运行时代码所需库请放在此处（compile / runtime scope）。
+      测试库请使用 scope=test，不会进入 fat jar，也不会被 shade 合并进可执行包。
+      当前解释器仅依赖 JDK 标准库，故无 compile 依赖；未删除任何历史依赖条目。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- 可执行 fat jar 单一名称：BlinkEngine.jar（artifactId 仍为 ObjectionR，仅输出文件名） -->
+        <finalName>BlinkEngine</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${main.class}</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <!-- 不生成 dependency-reduced-pom.xml，避免误以为「依赖被删掉」 -->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- false：shade 结果即主产物 BlinkEngine.jar，不再生成 *-fat.jar 附加工件 -->
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <!-- 不裁剪类；未来引入第三方库时全部打进 fat jar -->
+                            <minimizeJar>false</minimizeJar>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>${main.class}</mainClass>
+                                </transformer>
+                            </transformers>
+                            <!-- 仅去掉签名文件，避免 uber-jar 校验冲突；不剔除任何依赖 jar -->
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-fat-jar-to-products-out</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${products.out.dir}</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>BlinkEngine.jar</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>${products.out.dir}</directory>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <mainClass>${main.class}</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+          检出树含 src/test 时激活：与默认 skip 相反，package 前会编译并执行测试。
+          不含该目录时（例如未提交 test、仅发布源码树）不执行测试，无需 -DskipTests。
+        -->
+        <profile>
+            <id>has-test-sources</id>
+            <activation>
+                <file>
+                    <exists>src/test</exists>
+                </file>
+            </activation>
+            <properties>
+                <skipTests>false</skipTests>
+                <maven.test.skip>false</maven.test.skip>
+            </properties>
+        </profile>
+        <!--
+          Windows：mvn package -Pwin-exe
+          在 products/out/BlinkEngine/ 生成应用镜像（含 BlinkEngine.exe，与 build-win-exe.ps1 输出一致）。
+          需本机 PATH 或 JAVA_HOME 下的 jpackage（与 mvn 使用同一 JDK 为佳）。
+        -->
+        <profile>
+            <id>win-exe</id>
+            <properties>
+                <jpackage.exe.suffix>.exe</jpackage.exe.suffix>
+                <jpackage.input.dir>${project.build.directory}/jpackage-input</jpackage.input.dir>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>prepare-jpackage-input</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <mkdir dir="${jpackage.input.dir}"/>
+                                        <copy file="${project.build.directory}/${project.build.finalName}.jar"
+                                              tofile="${jpackage.input.dir}/app.jar"
+                                              overwrite="true"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>jpackage-app-image</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${java.home}/bin/jpackage${jpackage.exe.suffix}</executable>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                    <arguments>
+                                        <argument>--name</argument>
+                                        <argument>BlinkEngine</argument>
+                                        <argument>--input</argument>
+                                        <argument>${jpackage.input.dir}</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>app.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${products.out.dir}</argument>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
+                                        <argument>--win-console</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

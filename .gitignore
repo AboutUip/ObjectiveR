@@ -1,3 +1,8 @@
 .idea/
 .mvn/
+.vscode/
 src/test/
+demo/
+products/out/
+target/
+docs/dev/
