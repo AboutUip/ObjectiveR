@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./assets/obr-logo-wide.png" alt="Obr" width="200" height="64"/>
+<img src="assets/obr-logo-wide.svg" alt="Obr" width="200" height="64"/>
 
 # 技术文档 · `docs/`
 
@@ -20,7 +20,7 @@
 |:--|:--|
 | **[`obr/`](obr/README.md)** | ObjectiveR 语言规范（专题拆分） |
 | **[`blink/`](blink/README.md)** | BlinkEngine Java 实现（管线、追溯、错误码、源码对照） |
-| **[`assets/`](assets/README.md)** | 徽标 PNG（由 SVG 导出；见该目录说明） |
+| **[`assets/`](assets/README.md)** | 徽标与矢量资源（`obr-logo.svg` 等） |
 
 **编辑器扩展**（与解释器分仓打包）：[`Expansion/README.md`](../Expansion/README.md)
 

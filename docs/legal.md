@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="assets/ornament-legal.png" width="480" height="32" alt="" />
+<img src="assets/ornament-legal.svg" width="480" height="32" alt="" />
 
 ### 许可与版权
 
-<img src="assets/obr-mark.png" width="48" height="48" alt="Obr mark" />
+<img src="assets/obr-mark.svg" width="48" height="48" alt="Obr mark" />
 
 </div>
 
@@ -20,7 +20,7 @@
 
 ## 商标与徽标
 
-- **ObjectiveR** / **Obr** 名称与 [`docs/assets/`](assets/README.md) 中的徽标（PNG 展示、SVG 源稿）为项目视觉识别的一部分；可随文档与 README 合理引用、缩放。
+- **ObjectiveR** / **Obr** 名称与 [`docs/assets/`](assets/README.md) 中的 SVG 徽标为项目视觉识别的一部分；可随文档与 README 合理引用、缩放。
 - 若需独立产品或衍生发行，请自行评估商标与品牌合规（本文件不构成法律意见）。
 
 ---

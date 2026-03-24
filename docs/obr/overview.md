@@ -1,6 +1,6 @@
 # ObjectiveR 规范总览
 
-<div align="center"><img src="../assets/obr-logo.png" alt="Obr" width="56" height="56"/></div>
+<div align="center"><img src="../assets/obr-logo.svg" alt="Obr" width="56" height="56"/></div>
 
 **导航**：[规范索引](README.md) · [docs 说明](../README.md)
 

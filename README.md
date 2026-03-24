@@ -1,7 +1,7 @@
 <a id="top"></a>
 <div align="center">
 
-<img src="./docs/assets/obr-logo.png" alt="Obr logo" width="96" height="96"/>
+<img src="docs/assets/obr-logo.svg" alt="Obr logo" width="96" height="96"/>
 
 # ObjectiveR
 
@@ -109,7 +109,7 @@ products/      ← 构建脚本与产物说明
 ## 协议
 
 <p align="center">
-  <a href="LICENSE"><img src="./docs/assets/mit-badge.png" alt="MIT License" height="28"/></a>
+  <a href="LICENSE"><img src="docs/assets/mit-badge.svg" alt="MIT License" height="28"/></a>
 </p>
 
 以 [**MIT License**](LICENSE) 发布；版权见许可证全文。
