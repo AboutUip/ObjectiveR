@@ -1,4 +1,4 @@
-<div align="center"><img src="../assets/obr-logo.svg" alt="Obr" width="72" height="72"/></div>
+<div align="center"><img src="../assets/obr-logo.png" alt="Obr" width="72" height="72"/></div>
 
 # ObjectiveR 语言规范索引
 

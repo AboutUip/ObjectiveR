@@ -1,4 +1,4 @@
-<div align="center"><img src="../assets/obr-logo.svg" alt="Obr" width="48" height="48"/></div>
+<div align="center"><img src="../assets/obr-logo.png" alt="Obr" width="48" height="48"/></div>
 
 # BlinkEngine（`docs/blink/`）
 
