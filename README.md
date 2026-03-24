@@ -40,6 +40,7 @@ ObjectiveR 采用严格大小写检查。
 - `docs/spec/README.md`：ObjectiveR 语言规范索引
 - `docs/spec/overview.md`：规范总览
 - `docs/spec/preprocessor.md`：预处理指令规范
+- `docs/spec/runtime.md`：执行模型规范
 - `docs/LANGUAGE_SPEC.md`：兼容入口（指向拆分后规范）
 - `docs/README.md`：文档目录说明与维护约定
 
