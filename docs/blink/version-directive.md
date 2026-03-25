@@ -2,6 +2,8 @@
 
 **入口**：`VersionDirectiveChecker#checkProgram(ObrProgramBundle)`：对每个 `ParsedObrFile` 调用 `checkObrFile(path, ast)`。
 
+其它预处理行（含 `#LINK`）在 Blink 中的保留与**非消费**行为见 [project-preproc.md](project-preproc.md)。
+
 ---
 
 ## 扫描规则

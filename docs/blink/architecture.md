@@ -26,8 +26,8 @@
 
 | 类 | 状态 | 入口 | 文档 |
 |----|------|------|------|
-| `ProjectLocator` | — | `resolve` | [modules.md](modules.md) |
-| `ProjectResolution` | `record(mainObr, projectRoot)` | — | [supporting.md](supporting.md) |
+| `ProjectLocator` | — | `resolve` | [project-preproc.md](project-preproc.md)、[modules.md](modules.md) |
+| `ProjectResolution` | `record(mainObr, projectRoot)` | — | [project-preproc.md](project-preproc.md)、[supporting.md](supporting.md) |
 
 ---
 
@@ -54,7 +54,7 @@
 
 | 内容 | 文档 |
 |------|------|
-| `ObrFile`、`MrFile`、`Stmt`、`Expr`、`VarVisibility` 等 | [parsing.md](parsing.md) |
+| `ObrFile`、`MrFile`、`Stmt`、`Expr`、`VarVisibility` 等 | [ast-reference.md](ast-reference.md)、[parsing.md](parsing.md) |
 
 ---
 
@@ -90,7 +90,7 @@
 
 | 类 | 状态 | 入口 | 文档 |
 |----|------|------|------|
-| `RuntimeExecutor` | `defs`、`defOrigins`、`stack`、`functionStaticStores`、`fileStaticSlotsByName` | `executeMain` → `call` → `executeStmt` / `evalExpr` | [execution.md](execution.md) |
+| `RuntimeExecutor` | `defs`、`defOrigins`、`stack`、`functionStaticStores`、`fileStaticSlotsByName` | `executeMain` → `call` → `executeStmtsWithTail` / `executeStmtWithoutBlock` / `evalExpr` | [execution.md](execution.md)、[runtime-model.md](runtime-model.md) |
 
 ---
 

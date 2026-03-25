@@ -61,7 +61,7 @@
 | 主题 | 文档 |
 |------|------|
 | 预处理指令 | [preprocessor.md](preprocessor.md) |
-| 执行模型（入口、资源、`main`） | [runtime.md](runtime.md) |
+| 执行模型（入口、资源、`main`、调用栈 §5.2） | [runtime.md](runtime.md) |
 | 系统头与 `libs/` | [system.md](system.md) |
 | 可见性 | [visibility.md](visibility.md) |
 | `static` | [static.md](static.md) |

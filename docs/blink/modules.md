@@ -1,5 +1,7 @@
 # 模块与多文件（`com.kitepromiss.obr.module`）
 
+工程根判定、`.obr` 扫描与预处理在 Blink 中的**完整语义**（含 **`#LINK` 当前不参与改根**）见 [project-preproc.md](project-preproc.md)。
+
 ---
 
 ## `ProjectLocator`（`project` 包）
@@ -8,7 +10,7 @@
 |------|------|
 | `ProjectLocator.resolve(Path)` | 参数为**已存在**路径：文件则须文件名为 `main.obr`（大小写敏感），项目根为父目录；目录则递归查找唯一 `main.obr`，多文件报错 |
 
-失败抛 `ObrException`（无前缀码），消息描述路径/唯一性。
+失败抛 `ObrException`（无前缀码），消息描述路径/唯一性。与语言规范中 `#LINK` 的差异见 [project-preproc.md](project-preproc.md)。
 
 ---
 

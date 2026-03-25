@@ -13,6 +13,7 @@
 ## 顶层与模块
 
 - `.obr`：`deRfun`、预处理行、`import`（由 `Parser` / `ObrProgramLoader` 覆盖的范围）。
+- **项目根**：Blink 仅按磁盘上的 `main.obr` 父目录确定 `projectRoot`；**不**解析 `#LINK` 改写根目录（与 `docs/obr/runtime.md` 一般情形可能不一致）。详见 [project-preproc.md](project-preproc.md)。
 - `.mr`：声明、`namespace`（`Parser#parseMrFile`）。
 - `import` 解析与 `MrModuleIndex`：模块名唯一路径；冲突抛错（消息无前缀码，见 [errors.md](errors.md)）。
 
@@ -36,7 +37,8 @@
 
 ## 运行时
 
-- **调用栈**：`RuntimeExecutor` 内 `ArrayDeque<Frame>`；深度上限构造参数，溢出 `E_RT_STACK_OVERFLOW`。
+- **调用栈**：`RuntimeExecutor` 内 `ArrayDeque<Frame>` 记录逻辑调用链；深度与构造参数 `maxCallDepth` 比较，超出 → `E_RT_STACK_OVERFLOW`（见 [errors.md](errors.md) 与 JVM 栈说明）。
+- **void 尾调用（TCO）**：当前块末条的单独 void `deRfun` 调用（见 [execution.md](execution.md)）由 `call` 外层循环承接，**不**增加 JVM 调用栈深度；深尾递归主要受 `maxCallDepth` 限制。**非尾**递归仍可能先触发 JVM `StackOverflowError`。
 - **`return`**：非 void 须执行到 `Stmt.Return`；否则 `E_RT_RETURN_MISSING`；返回类型数值加宽失败 `E_RT_RETURN_COERCE`。
 - **`static var`**：再次执行声明且同名槽已存在 → `E_RT_STATIC_LOCAL_REDECL`（见 [`docs/obr/runtime.md`](../obr/runtime.md) §5.1）。
 

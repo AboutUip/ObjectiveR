@@ -3,45 +3,20 @@
   "name": "ObjectiveR",
   "scopeName": "source.objective-r",
   "patterns": [
-    {
-      "include": "#comments"
-    },
-    {
-      "include": "#strings"
-    },
-    {
-      "include": "#preprocessor"
-    },
-    {
-      "include": "#annotations"
-    },
-    {
-      "include": "#keywords"
-    },
-    {
-      "include": "#types"
-    },
-    {
-      "include": "#constants"
-    },
-    {
-      "include": "#numbers"
-    },
-    {
-      "include": "#function-def"
-    },
-    {
-      "include": "#function-signature-parts"
-    },
-    {
-      "include": "#function-call"
-    },
-    {
-      "include": "#namespace-path"
-    },
-    {
-      "include": "#operators"
-    }
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#preprocessor-line" },
+    { "include": "#annotations" },
+    { "include": "#keywords" },
+    { "include": "#var-decl" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#numbers" },
+    { "include": "#function-def" },
+    { "include": "#function-signature-parts" },
+    { "include": "#function-call" },
+    { "include": "#namespace-path" },
+    { "include": "#operators" }
   ],
   "repository": {
     "comments": {
@@ -50,9 +25,7 @@
           "name": "comment.line.double-slash.objective-r",
           "begin": "//",
           "beginCaptures": {
-            "0": {
-              "name": "punctuation.definition.comment.objective-r"
-            }
+            "0": { "name": "punctuation.definition.comment.objective-r" }
           },
           "end": "$\\n?"
         },
@@ -60,15 +33,11 @@
           "name": "comment.block.objective-r",
           "begin": "/\\*",
           "beginCaptures": {
-            "0": {
-              "name": "punctuation.definition.comment.begin.objective-r"
-            }
+            "0": { "name": "punctuation.definition.comment.begin.objective-r" }
           },
           "end": "\\*/",
           "endCaptures": {
-            "0": {
-              "name": "punctuation.definition.comment.end.objective-r"
-            }
+            "0": { "name": "punctuation.definition.comment.end.objective-r" }
           }
         }
       ]
@@ -79,51 +48,40 @@
           "name": "string.quoted.double.objective-r",
           "begin": "\"",
           "beginCaptures": {
-            "0": {
-              "name": "punctuation.definition.string.begin.objective-r"
-            }
+            "0": { "name": "punctuation.definition.string.begin.objective-r" }
           },
           "end": "\"",
           "endCaptures": {
-            "0": {
-              "name": "punctuation.definition.string.end.objective-r"
-            }
+            "0": { "name": "punctuation.definition.string.end.objective-r" }
           },
           "patterns": [
-            {
-              "name": "constant.character.escape.objective-r",
-              "match": "\\\\."
-            }
+            { "name": "constant.character.escape.objective-r", "match": "\\\\." }
           ]
         },
         {
           "name": "string.quoted.single.objective-r",
           "begin": "'",
           "beginCaptures": {
-            "0": {
-              "name": "punctuation.definition.string.begin.objective-r"
-            }
+            "0": { "name": "punctuation.definition.string.begin.objective-r" }
           },
           "end": "'",
           "endCaptures": {
-            "0": {
-              "name": "punctuation.definition.string.end.objective-r"
-            }
+            "0": { "name": "punctuation.definition.string.end.objective-r" }
           },
           "patterns": [
-            {
-              "name": "constant.character.escape.objective-r",
-              "match": "\\\\."
-            }
+            { "name": "constant.character.escape.objective-r", "match": "\\\\." }
           ]
         }
       ]
     },
-    "preprocessor": {
+    "preprocessor-line": {
       "patterns": [
         {
-          "name": "keyword.control.directive.objective-r",
-          "match": "^\\s*#\\s*(VERSION|LINK)\\b"
+          "name": "meta.preprocessor.objective-r",
+          "match": "^\\s*(#.*)$",
+          "captures": {
+            "1": { "name": "keyword.control.directive.objective-r" }
+          }
         }
       ]
     },
@@ -139,7 +97,7 @@
       "patterns": [
         {
           "name": "keyword.control.objective-r",
-          "match": "\\b(import|namespace|return|if|else|for|while|break|continue)\\b"
+          "match": "\\b(import|namespace|return)\\b"
         },
         {
           "name": "storage.type.function.objective-r",
@@ -148,6 +106,25 @@
         {
           "name": "storage.modifier.objective-r",
           "match": "\\b(public|private|static)\\b"
+        },
+        {
+          "name": "storage.type.var.objective-r",
+          "match": "\\bvar\\b"
+        }
+      ]
+    },
+    "var-decl": {
+      "patterns": [
+        {
+          "name": "meta.var.declaration.objective-r",
+          "match": "\\b(static\\s+)?(var)\\s*(\\[)([A-Za-z_]\\w*)(\\])",
+          "captures": {
+            "1": { "name": "storage.modifier.objective-r" },
+            "2": { "name": "storage.type.var.objective-r" },
+            "3": { "name": "punctuation.definition.brackets.begin.objective-r" },
+            "4": { "name": "storage.type.primitive.objective-r" },
+            "5": { "name": "punctuation.definition.brackets.end.objective-r" }
+          }
         }
       ]
     },
@@ -171,7 +148,7 @@
       "patterns": [
         {
           "name": "constant.numeric.objective-r",
-          "match": "\\b(?:0[xX][0-9a-fA-F]+|\\d+\\.\\d+|\\d+)\\b"
+          "match": "\\b(?:0[xX][0-9a-fA-F]+|\\d+\\.\\d+[fFdD]?|\\d+[fFdDlL]?|\\d+)\\b"
         }
       ]
     },
@@ -181,12 +158,8 @@
           "name": "meta.function.definition.objective-r",
           "match": "\\b(deRfun)\\s+([A-Za-z_]\\w*(?:::[A-Za-z_]\\w*)*)\\b",
           "captures": {
-            "1": {
-              "name": "storage.type.function.objective-r"
-            },
-            "2": {
-              "name": "entity.name.function.objective-r"
-            }
+            "1": { "name": "storage.type.function.objective-r" },
+            "2": { "name": "entity.name.function.objective-r" }
           }
         }
       ]
@@ -197,18 +170,10 @@
           "name": "meta.function.parameter.objective-r",
           "match": "(\\[)([A-Za-z_]\\w*)(\\])\\s*([A-Za-z_]\\w*)",
           "captures": {
-            "1": {
-              "name": "punctuation.definition.brackets.begin.objective-r"
-            },
-            "2": {
-              "name": "storage.type.primitive.objective-r"
-            },
-            "3": {
-              "name": "punctuation.definition.brackets.end.objective-r"
-            },
-            "4": {
-              "name": "variable.parameter.objective-r"
-            }
+            "1": { "name": "punctuation.definition.brackets.begin.objective-r" },
+            "2": { "name": "storage.type.primitive.objective-r" },
+            "3": { "name": "punctuation.definition.brackets.end.objective-r" },
+            "4": { "name": "variable.parameter.objective-r" }
           }
         },
         {
@@ -227,9 +192,7 @@
           "name": "meta.function-call.objective-r",
           "match": "\\b([A-Za-z_]\\w*(?:::[A-Za-z_]\\w*)*)\\s*(?=\\()",
           "captures": {
-            "1": {
-              "name": "support.function.objective-r"
-            }
+            "1": { "name": "entity.name.function.call.objective-r" }
           }
         }
       ]
@@ -249,8 +212,20 @@
     "operators": {
       "patterns": [
         {
+          "name": "keyword.operator.increment.objective-r",
+          "match": "\\+\\+|--"
+        },
+        {
+          "name": "keyword.operator.assignment.compound.objective-r",
+          "match": "\\+=|-=|\\*=|/=|%="
+        },
+        {
+          "name": "keyword.operator.arithmetic.objective-r",
+          "match": "\\*\\*"
+        },
+        {
           "name": "keyword.operator.objective-r",
-          "match": "(?:\\+\\+|--|==|!=|<=|>=|&&|\\|\\||<<|>>>|>>|\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|\\+|-|\\*|/|%|=|<|>|!|&|\\||\\^|~|\\?|:)"
+          "match": "(?:==|!=|<=|>=|&&|\\|\\||<<|>>>|>>|&=|\\|=|\\^=|\\+|-|\\*|/|%|=|<|>|!|&|\\||\\^|~|\\?|:)"
         }
       ]
     }

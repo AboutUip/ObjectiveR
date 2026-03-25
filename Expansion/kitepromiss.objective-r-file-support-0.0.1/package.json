@@ -1,9 +1,9 @@
 {
   "name": "objective-r-file-support",
   "displayName": "ObjectiveR File Support",
-  "description": "Recognize .obr/.mr files, provide syntax highlighting, and dedicated file icons.",
+  "description": "Obr / ModuleR: syntax highlighting, completion, hover, diagnostics, snippets, icons.",
   "icon": "icons/obr.svg",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "main": "./extension.js",
   "publisher": "kitepromiss",
   "engines": {
@@ -13,6 +13,31 @@
     "Programming Languages"
   ],
   "contributes": {
+    "configuration": {
+      "title": "ObjectiveR",
+      "properties": {
+        "objectiveR.completion.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用自动补全（关键字、工作区函数、std::、片段）。"
+        },
+        "objectiveR.diagnostics.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用全部语法/语义诊断；关闭后不在编辑器中显示波浪线。"
+        },
+        "objectiveR.diagnostics.structural": {
+          "type": "boolean",
+          "default": true,
+          "description": "括号/引号/块注释匹配（不依赖工作区索引）。"
+        },
+        "objectiveR.diagnostics.workspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "工作区级检查：import、deRfun 声明形式、重复签名等。"
+        }
+      }
+    },
     "languages": [
       {
         "id": "objective-r-obr",

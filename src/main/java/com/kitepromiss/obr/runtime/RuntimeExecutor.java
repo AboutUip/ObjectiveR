@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** P5 最小运行时：main 入口、调用栈、std::rout 原生代理。 */
 public final class RuntimeExecutor {
@@ -162,6 +163,19 @@ public final class RuntimeExecutor {
         }
     }
 
+    /**
+     * 语句序列执行结果：正常结束、{@code return}、或对 void 的<strong>尾调用</strong>请求（不增加 JVM 栈，
+     * 由 {@link #call} 外层循环承接）。
+     */
+    private sealed interface StmtExecResult
+            permits StmtExecResult.Done, StmtExecResult.ReturnedVal, StmtExecResult.TailVoidCall {
+        record Done() implements StmtExecResult {}
+
+        record ReturnedVal(Value value) implements StmtExecResult {}
+
+        record TailVoidCall(String qn, List<Value> args, String callerFile) implements StmtExecResult {}
+    }
+
     private record LocalBinding(String typeKeyword, Value value) {}
 
     /** 块环境与词法作用域链；{@link #getValue} 在局部链之后查函数 {@link StaticStore}。 */
@@ -291,106 +305,165 @@ public final class RuntimeExecutor {
                             + " std::rout 仅接受 string、char、整型/浮点标量等可打印类型（见 system.mr 声明）");
         }
 
-        List<String> actualTypes = args.stream().map(a -> a.type().keyword).toList();
+        String nextQn = qn;
+        List<Value> nextArgs = args;
+        String nextCaller = callerFile;
+
+        while (true) {
+            List<String> actualTypes = nextArgs.stream().map(a -> a.type().keyword).toList();
+            FunctionSignature requested = new FunctionSignature(nextQn, actualTypes);
+            FunctionSignature resolved = resolveRuntimeSignature(requested);
+            ObrItem.DeRfunDef def = defs.get(resolved);
+            if (def == null) {
+                throw new ObrException(
+                        E_RT_IMPL_NOT_FOUND
+                                + " 运行时未找到函数实现: "
+                                + requested
+                                + "，调用链="
+                                + formatStackWith(nextQn));
+            }
+            String calleeFileResolved = defOrigins.getOrDefault(resolved, "<unknown>");
+            if (stack.size() >= maxCallDepth) {
+                throw new ObrException(
+                        E_RT_STACK_OVERFLOW
+                                + " "
+                                + "调用栈深度超限: depth="
+                                + stack.size()
+                                + ", max="
+                                + maxCallDepth
+                                + ", next="
+                                + nextQn
+                                + ", 调用链="
+                                + formatStackWith(nextQn));
+            }
+
+            audit.event(
+                    TraceLevel.NORMAL,
+                    TraceCategory.RUNTIME,
+                    "call_resolve",
+                    InterpreterAuditLog.fields(
+                            "run_id", runId,
+                            "caller_file", nextCaller,
+                            "callee", resolved.qualifiedName(),
+                            "defined_in", calleeFileResolved));
+            stack.push(new Frame(nextQn, calleeFileResolved));
+            audit.event(
+                    TraceLevel.NORMAL,
+                    TraceCategory.RUNTIME,
+                    "call_enter",
+                    InterpreterAuditLog.fields(
+                            "run_id", runId,
+                            "callee", resolved.toString(),
+                            "stack_depth", Integer.toString(stack.size())));
+
+            StaticStore statics = functionStaticStores.computeIfAbsent(resolved, k -> new StaticStore());
+            Env env = new Env();
+            env.push();
+            for (int i = 0; i < def.params().size(); i++) {
+                ParamDecl p = def.params().get(i);
+                env.putLocal(p.name(), p.type().keywordLexeme(), nextArgs.get(i));
+            }
+            String declaredRet = def.returnType().keywordLexeme();
+            boolean voidFn = "void".equals(declaredRet);
+            StmtExecResult ser =
+                    executeStmtsWithTail(
+                            def.body().statements(), env, statics, calleeFileResolved, declaredRet, voidFn);
+
+            audit.event(
+                    TraceLevel.NORMAL,
+                    TraceCategory.RUNTIME,
+                    "call_exit",
+                    InterpreterAuditLog.fields(
+                            "run_id", runId,
+                            "callee", resolved.toString(),
+                            "stack_depth", Integer.toString(stack.size())));
+            stack.pop();
+
+            switch (ser) {
+                case StmtExecResult.TailVoidCall t -> {
+                    nextQn = t.qn();
+                    nextArgs = t.args();
+                    nextCaller = t.callerFile();
+                }
+                case StmtExecResult.ReturnedVal rv -> {
+                    return rv.value();
+                }
+                case StmtExecResult.Done d -> {
+                    if (!voidFn) {
+                        throw new ObrException(
+                                E_RT_RETURN_MISSING + " 非 void 函数执行结束但未执行 return: " + resolved);
+                    }
+                    return null;
+                }
+            }
+        }
+    }
+
+    /**
+     * 执行语句列表；void 函数<strong>块尾</strong>对另一 void 函数的直调用可走尾调用，不消耗 JVM 调用栈。
+     */
+    private StmtExecResult executeStmtsWithTail(
+            List<Stmt> stmts,
+            Env env,
+            StaticStore statics,
+            String calleeFile,
+            String declaredRet,
+            boolean voidFn) {
+        for (int i = 0; i < stmts.size(); i++) {
+            Stmt s = stmts.get(i);
+            boolean last = i == stmts.size() - 1;
+
+            if (s instanceof Stmt.Block blk) {
+                env.push();
+                try {
+                    StmtExecResult br =
+                            executeStmtsWithTail(
+                                    blk.body().statements(), env, statics, calleeFile, declaredRet, voidFn);
+                    if (br instanceof StmtExecResult.TailVoidCall || br instanceof StmtExecResult.ReturnedVal) {
+                        return br;
+                    }
+                } finally {
+                    env.pop();
+                }
+                continue;
+            }
+
+            if (last && voidFn && s instanceof Stmt.Expression se) {
+                Optional<StmtExecResult.TailVoidCall> tail =
+                        tryResolveVoidTailCall(se.call(), env, statics, calleeFile);
+                if (tail.isPresent()) {
+                    return tail.get();
+                }
+            }
+
+            RtResult r = executeStmtWithoutBlock(s, env, statics, calleeFile, declaredRet, voidFn);
+            if (r.returned()) {
+                return new StmtExecResult.ReturnedVal(r.value());
+            }
+        }
+        return new StmtExecResult.Done();
+    }
+
+    private Optional<StmtExecResult.TailVoidCall> tryResolveVoidTailCall(
+            CallExpr call, Env env, StaticStore statics, String callerFile) {
+        String qn = String.join("::", call.callee().segments());
+        if ("std::rout".equals(qn)) {
+            return Optional.empty();
+        }
+        List<Value> evaled =
+                call.arguments().stream().map(a -> evalExpr(a, env, statics, callerFile)).toList();
+        List<String> actualTypes = evaled.stream().map(a -> a.type().keyword).toList();
         FunctionSignature requested = new FunctionSignature(qn, actualTypes);
         FunctionSignature resolved = resolveRuntimeSignature(requested);
         ObrItem.DeRfunDef def = defs.get(resolved);
-        if (def == null) {
-            throw new ObrException(E_RT_IMPL_NOT_FOUND + " 运行时未找到函数实现: " + requested + "，调用链=" + formatStackWith(qn));
+        if (def == null || !"void".equals(def.returnType().keywordLexeme())) {
+            return Optional.empty();
         }
-        String calleeFile = defOrigins.getOrDefault(resolved, "<unknown>");
-        if (stack.size() >= maxCallDepth) {
-            throw new ObrException(
-                    E_RT_STACK_OVERFLOW + " "
-                            + "调用栈深度超限: depth="
-                            + stack.size()
-                            + ", max="
-                            + maxCallDepth
-                            + ", next="
-                            + qn
-                            + ", 调用链="
-                            + formatStackWith(qn));
-        }
-
-        audit.event(
-                TraceLevel.NORMAL,
-                TraceCategory.RUNTIME,
-                "call_resolve",
-                InterpreterAuditLog.fields(
-                        "run_id", runId,
-                        "caller_file", callerFile,
-                        "callee", resolved.qualifiedName(),
-                        "defined_in", calleeFile));
-        stack.push(new Frame(qn, calleeFile));
-        audit.event(
-                TraceLevel.NORMAL,
-                TraceCategory.RUNTIME,
-                "call_enter",
-                InterpreterAuditLog.fields(
-                        "run_id", runId,
-                        "callee", resolved.toString(),
-                        "stack_depth", Integer.toString(stack.size())));
-
-        StaticStore statics = functionStaticStores.computeIfAbsent(resolved, k -> new StaticStore());
-        Env env = new Env();
-        env.push();
-        for (int i = 0; i < def.params().size(); i++) {
-            ParamDecl p = def.params().get(i);
-            env.putLocal(p.name(), p.type().keywordLexeme(), args.get(i));
-        }
-        String declaredRet = def.returnType().keywordLexeme();
-        boolean voidFn = "void".equals(declaredRet);
-        RtResult done = executeStmts(def.body().statements(), env, statics, calleeFile, declaredRet, voidFn);
-        if (done.returned()) {
-            audit.event(
-                    TraceLevel.NORMAL,
-                    TraceCategory.RUNTIME,
-                    "call_exit",
-                    InterpreterAuditLog.fields(
-                            "run_id", runId,
-                            "callee", resolved.toString(),
-                            "stack_depth", Integer.toString(stack.size())));
-            stack.pop();
-            return done.value();
-        }
-        if (!voidFn) {
-            audit.event(
-                    TraceLevel.NORMAL,
-                    TraceCategory.RUNTIME,
-                    "call_exit",
-                    InterpreterAuditLog.fields(
-                            "run_id", runId,
-                            "callee", resolved.toString(),
-                            "stack_depth", Integer.toString(stack.size())));
-            stack.pop();
-            throw new ObrException(
-                    E_RT_RETURN_MISSING + " 非 void 函数执行结束但未执行 return: " + resolved);
-        }
-
-        audit.event(
-                TraceLevel.NORMAL,
-                TraceCategory.RUNTIME,
-                "call_exit",
-                InterpreterAuditLog.fields(
-                        "run_id", runId,
-                        "callee", resolved.toString(),
-                        "stack_depth", Integer.toString(stack.size())));
-        stack.pop();
-        return null;
+        return Optional.of(new StmtExecResult.TailVoidCall(qn, evaled, callerFile));
     }
 
-    private RtResult executeStmts(
-            List<Stmt> stmts, Env env, StaticStore statics, String calleeFile, String declaredRet, boolean voidFn) {
-        for (Stmt s : stmts) {
-            RtResult r = executeStmt(s, env, statics, calleeFile, declaredRet, voidFn);
-            if (r.returned()) {
-                return r;
-            }
-        }
-        return RtResult.none();
-    }
-
-    private RtResult executeStmt(Stmt s, Env env, StaticStore statics, String calleeFile, String declaredRet, boolean voidFn) {
+    private RtResult executeStmtWithoutBlock(
+            Stmt s, Env env, StaticStore statics, String calleeFile, String declaredRet, boolean voidFn) {
         switch (s) {
             case Stmt.Expression exp -> {
                 executeCall(exp.call(), env, statics, calleeFile);
@@ -407,14 +480,7 @@ public final class RuntimeExecutor {
                 executeVarDecl(vd, env, statics, calleeFile);
                 return RtResult.none();
             }
-            case Stmt.Block blk -> {
-                env.push();
-                try {
-                    return executeStmts(blk.body().statements(), env, statics, calleeFile, declaredRet, voidFn);
-                } finally {
-                    env.pop();
-                }
-            }
+            case Stmt.Block ignored -> throw new AssertionError("Block handled in executeStmtsWithTail");
             case Stmt.Assign as -> {
                 String ty = resolveDeclaredType(as.name(), env, statics, calleeFile);
                 if (ty == null) {

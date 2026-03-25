@@ -15,9 +15,9 @@
 | `lex/CharLiteralParser.java` | [supporting.md](supporting.md)、[lexing.md](lexing.md) |
 | `parse/Parser.java` | [parsing.md](parsing.md) |
 | `parse/TokenCursor.java` | [parsing.md](parsing.md) |
-| `ast/*`（`ObrFile`、`MrFile`、`Stmt`、`Expr`、`CallExpr` 等） | [parsing.md](parsing.md)、[architecture.md](architecture.md) |
+| `ast/*`（`ObrFile`、`MrFile`、`Stmt`、`Expr`、`CallExpr` 等） | [ast-reference.md](ast-reference.md)、[parsing.md](parsing.md)、[architecture.md](architecture.md) |
 | `module/LibsProvisioner.java` | [modules.md](modules.md) |
-| `module/ObrProgramLoader.java` | [modules.md](modules.md) |
+| `module/ObrProgramLoader.java` | [modules.md](modules.md)、[project-preproc.md](project-preproc.md) |
 | `module/ObrProgramBundle.java` | [modules.md](modules.md)、[supporting.md](supporting.md) |
 | `module/ModuleLoader.java` | [modules.md](modules.md) |
 | `module/ModuleBundle.java` | [modules.md](modules.md)、[supporting.md](supporting.md) |
@@ -30,11 +30,11 @@
 | `semantic/ObrLanguageVersion.java` | [version-directive.md](version-directive.md)、[supporting.md](supporting.md) |
 | `semantic/FunctionSignature.java` | [semantic-binding.md](semantic-binding.md)、[overload-resolution.md](overload-resolution.md)、[supporting.md](supporting.md) |
 | `semantic/DeclaredFunction.java` | [semantic-binding.md](semantic-binding.md)、[supporting.md](supporting.md) |
-| `runtime/RuntimeExecutor.java` | [execution.md](execution.md) |
+| `runtime/RuntimeExecutor.java` | [execution.md](execution.md)、[runtime-model.md](runtime-model.md) |
 | `trace/InterpreterAuditLog.java` | [audit.md](audit.md)、[supporting.md](supporting.md) |
 | `trace/TraceLevel.java` | [audit.md](audit.md)、[supporting.md](supporting.md) |
 | `trace/TraceCategory.java` | [audit.md](audit.md) |
 
 **CLI 入口**（`com.kitepromiss.Main`）：[pipeline.md](pipeline.md)。
 
-**测试代码**：`src/test/java/com/kitepromiss/obr/` 与上表镜像；行为以测试类名为准，重大行为须在对应专题文档可印证。
+**测试代码**：`src/test/java/com/kitepromiss/obr/` 与上表镜像；索引见 [testing.md](testing.md)。行为以测试类名为准，重大行为须在对应专题文档可印证。

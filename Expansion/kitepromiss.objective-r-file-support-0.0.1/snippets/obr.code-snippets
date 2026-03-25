@@ -41,49 +41,32 @@
   "Main Function": {
     "prefix": "main",
     "body": [
-      "deRfun main(): void {",
+      "deRfun main():void {",
       "\t${0}",
       "}"
     ],
     "description": "Insert main entry function"
   },
-  "if Block": {
-    "prefix": "if",
+  "var local": {
+    "prefix": "var",
     "body": [
-      "if (${1:condition}) {",
-      "\t${0}",
-      "}"
+      "var[${1:int}] ${2:x} = ${3:0};"
     ],
-    "description": "Insert if block"
+    "description": "Local variable declaration"
   },
-  "if else Block": {
-    "prefix": "ife",
+  "static var": {
+    "prefix": "svar",
     "body": [
-      "if (${1:condition}) {",
-      "\t${2}",
-      "} else {",
-      "\t${0}",
-      "}"
+      "static var[${1:int}] ${2:n} = ${3:0};"
     ],
-    "description": "Insert if/else block"
+    "description": "Static variable (function scope)"
   },
-  "while Block": {
-    "prefix": "while",
+  "static mark": {
+    "prefix": "smark",
     "body": [
-      "while (${1:condition}) {",
-      "\t${0}",
-      "}"
+      "static ${1:ident};"
     ],
-    "description": "Insert while loop"
-  },
-  "for Block": {
-    "prefix": "for",
-    "body": [
-      "for (${1:init}; ${2:condition}; ${3:update}) {",
-      "\t${0}",
-      "}"
-    ],
-    "description": "Insert for loop"
+    "description": "Mark local as static"
   },
   "return Statement": {
     "prefix": "ret",

@@ -3,17 +3,13 @@ const path = require("path");
 
 const LANGUAGE_IDS = ["objective-r-obr", "objective-r-mr"];
 
+/** 与 BlinkEngine 词法/解析一致（见 docs/blink/lexing.md、Parser）。 */
 const KEYWORDS = [
   "deRfun",
   "import",
   "namespace",
   "return",
-  "if",
-  "else",
-  "for",
-  "while",
-  "break",
-  "continue",
+  "var",
   "public",
   "private",
   "static",
@@ -34,6 +30,164 @@ const KEYWORDS = [
   "null",
   "undefined"
 ];
+
+const STD_NAMESPACE_COMPLETIONS = (() => {
+  const rout = new vscode.CompletionItem("rout", vscode.CompletionItemKind.Function);
+  rout.detail = "std::rout (console)";
+  rout.documentation = new vscode.MarkdownString(
+    "标准输出一行。`system.mr` 中重载：string、byte、short、int、long、char、float、double。"
+  );
+  rout.insertText = new vscode.SnippetString("rout(${1});");
+  rout.sortText = "0_std_rout";
+  rout.filterText = "rout";
+  return [rout];
+})();
+
+function diagnosticsEnabled(kind) {
+  const c = vscode.workspace.getConfiguration("objectiveR");
+  if (c.get("diagnostics.enable") === false) return false;
+  if (kind === "structural") return c.get("diagnostics.structural") !== false;
+  if (kind === "workspace") return c.get("diagnostics.workspace") !== false;
+  return true;
+}
+
+/**
+ * 括号/方括号/圆括号匹配、块注释闭合、引号闭合（忽略行内 // 与块注释、字符串内字符）。
+ */
+function scanStructuralDiagnostics(text) {
+  const out = [];
+  const lines = text.split(/\r?\n/);
+  let inBlockComment = false;
+  let stringQuote = null;
+  let escape = false;
+  const stack = [];
+
+  for (let li = 0; li < lines.length; li += 1) {
+    const line = lines[li];
+    let inLineComment = false;
+
+    for (let ci = 0; ci < line.length; ci += 1) {
+      const c = line[ci];
+      const next = line[ci + 1];
+
+      if (inLineComment) break;
+
+      if (inBlockComment) {
+        if (c === "*" && next === "/") {
+          inBlockComment = false;
+          ci += 1;
+        }
+        continue;
+      }
+
+      if (stringQuote) {
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (c === "\\") {
+          escape = true;
+          continue;
+        }
+        if (c === stringQuote) {
+          stringQuote = null;
+          continue;
+        }
+        continue;
+      }
+
+      if (c === "/" && next === "/") {
+        inLineComment = true;
+        break;
+      }
+      if (c === "/" && next === "*") {
+        inBlockComment = true;
+        ci += 1;
+        continue;
+      }
+
+      if (c === '"' || c === "'") {
+        stringQuote = c;
+        continue;
+      }
+
+      if (c === "{" || c === "(" || c === "[") {
+        stack.push({ ch: c, line: li, col: ci });
+      } else if (c === "}" || c === ")" || c === "]") {
+        const want = c === "}" ? "{" : c === ")" ? "(" : "[";
+        if (!stack.length || stack[stack.length - 1].ch !== want) {
+          const pos = new vscode.Position(li, ci);
+          out.push(
+            new vscode.Diagnostic(
+              new vscode.Range(pos, pos.translate(0, 1)),
+              `不匹配的括号: 期望与 '${want}' 配对，实际为 '${c}'`,
+              vscode.DiagnosticSeverity.Error
+            )
+          );
+        } else {
+          stack.pop();
+        }
+      }
+    }
+  }
+
+  if (inBlockComment) {
+    const li = Math.max(0, lines.length - 1);
+    const pos = new vscode.Position(li, 0);
+    out.push(
+      new vscode.Diagnostic(
+        new vscode.Range(pos, pos),
+        "未结束的块注释 /* … */",
+        vscode.DiagnosticSeverity.Error
+      )
+    );
+  }
+
+  if (stringQuote) {
+    const li = Math.max(0, lines.length - 1);
+    const line = lines[li] || "";
+    const pos = new vscode.Position(li, Math.max(0, line.length - 1));
+    out.push(
+      new vscode.Diagnostic(
+        new vscode.Range(pos, pos.translate(0, 1)),
+        `未闭合的字符串（起始 ${stringQuote}）`,
+        vscode.DiagnosticSeverity.Error
+      )
+    );
+  }
+
+  for (const s of stack) {
+    const pos = new vscode.Position(s.line, s.col);
+    out.push(
+      new vscode.Diagnostic(
+        new vscode.Range(pos, pos.translate(0, 1)),
+        `未闭合的 '${s.ch}'`,
+        vscode.DiagnosticSeverity.Error
+      )
+    );
+  }
+
+  return out;
+}
+
+function buildVarSnippetCompletions() {
+  const local = new vscode.CompletionItem("var 局部变量", vscode.CompletionItemKind.Snippet);
+  local.insertText = new vscode.SnippetString("var[${1:int}] ${2:x} = ${3:0};");
+  local.detail = "var[type] name = init;";
+  local.sortText = "0_var_local";
+
+  const st = new vscode.CompletionItem("static var", vscode.CompletionItemKind.Snippet);
+  st.insertText = new vscode.SnippetString("static var[${1:int}] ${2:n} = ${3:0};");
+  st.detail = "static var[type] …";
+  st.sortText = "0_var_static";
+
+  const mark = new vscode.CompletionItem("static 标记", vscode.CompletionItemKind.Snippet);
+  mark.insertText = new vscode.SnippetString("static ${1:ident};");
+  mark.detail = "static ident; 将已有局部标为 static";
+  mark.sortText = "0_static_mark";
+
+  return [local, st, mark];
+}
 
 class ObrIndex {
   constructor() {
@@ -419,6 +573,13 @@ function collectDiagnosticsForDocument(document, index) {
   const diagnostics = [];
   if (!LANGUAGE_IDS.includes(document.languageId)) return diagnostics;
 
+  if (diagnosticsEnabled("structural")) {
+    diagnostics.push(...scanStructuralDiagnostics(document.getText()));
+  }
+  if (!diagnosticsEnabled("workspace")) {
+    return diagnostics;
+  }
+
   const text = document.getText();
   const lines = text.split(/\r?\n/);
   const heads = parseFunctionHeadsWithLine(text);
@@ -710,6 +871,14 @@ async function activate(context) {
   context.subscriptions.push(watcherMr, watcherObr);
 
   context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("objectiveR")) {
+        scheduleIndexAndDiagnosticsRefresh(0);
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument(async (doc) => {
       if (!LANGUAGE_IDS.includes(doc.languageId)) return;
       diagnosticCollection.set(doc.uri, collectDiagnosticsForDocument(doc, index));
@@ -729,6 +898,15 @@ async function activate(context) {
     LANGUAGE_IDS,
     {
       provideCompletionItems(document, position) {
+        if (vscode.workspace.getConfiguration("objectiveR").get("completion.enable") === false) {
+          return [];
+        }
+
+        const linePrefix = document.lineAt(position.line).text.slice(0, position.character);
+        if (/\bstd::\w*$/.test(linePrefix)) {
+          return STD_NAMESPACE_COMPLETIONS;
+        }
+
         const items = [];
         if (isImportContext(document, position)) {
           return buildImportCompletionItems(index);
@@ -739,14 +917,14 @@ async function activate(context) {
             kw,
             kw.startsWith("#")
               ? vscode.CompletionItemKind.Keyword
-              : kw.startsWith("@")
-              ? vscode.CompletionItemKind.Snippet
               : vscode.CompletionItemKind.Keyword
           );
           item.insertText = kw;
+          item.sortText = `1_${kw}`;
           items.push(item);
         }
         items.push(...buildDirectiveCompletionItems());
+        items.push(...buildVarSnippetCompletions());
 
         const qualifier = getNamespaceQualifierBeforePosition(document, position);
         const symbols = filterVisibleSymbols(index.allSymbols(), document);
@@ -757,6 +935,8 @@ async function activate(context) {
             item.sortText = sym.fullName.startsWith(preferredPrefix)
               ? `0_${sym.fullName}`
               : `2_${sym.fullName}`;
+          } else {
+            item.sortText = `0_${sym.fullName}`;
           }
           items.push(item);
         }
@@ -765,6 +945,7 @@ async function activate(context) {
       }
     },
     ":",
+    ".",
     "@",
     "#"
   );

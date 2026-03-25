@@ -1,5 +1,7 @@
 # 执行管线（`ObrInterpreter#run`）
 
+**工程根与预处理**（含 `#LINK` 在 Blink 中不参与路径）：[project-preproc.md](project-preproc.md)。
+
 **入口**：`com.kitepromiss.Main#main` → `LaunchArgs.parse` → `ObrInterpreter#run(LaunchArgs)`。
 
 **返回**：`0` 成功；`1` 为 `ObrException` 或读源 `IOException`（审计中 IO 记为 `E_IO_READ`）。

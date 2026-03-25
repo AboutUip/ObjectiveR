@@ -70,7 +70,7 @@
 - 扫描范围为项目根目录及其子目录。
 - 扫描对象包含：
   - 所有 `.obr` 代码文件
-- 所有 `.mr`（moduleR）文件
+  - 所有 `.mr`（moduleR）文件
   - 其他非 `.obr` 杂项资源（如配置、数据、静态资源等）
 
 ### 4.2 资源表要求
@@ -99,3 +99,11 @@
 - 由 `static` 确定的变量使用**函数级静态存储**（槽位跨调用保留，直至进程内解释器实例生命周期结束）。
 - **每次**执行到 `static var[type] name …` 语句时：若当前函数的静态存储中**已存在**同名槽，必须报错（`E_RT_STATIC_LOCAL_REDECL`），视为对同一静态名的重复声明；**不得**采用「仅首次初始化」的 C/Java static 局部语义。
 - 与 [`static.md`](static.md) 第 4 节（不可逆 / 不得重复标识）一致；与 [`visibility.md` 第 8 节](visibility.md) 正交说明一致。
+
+### 5.2 调用栈（规范意图与参考实现）
+
+- **规范意图**：实现应对**无界递归或极深调用链**给出可诊断的失败方式（例如报告调用过深并终止），而不依赖未定义行为。
+- **本仓库 BlinkEngine**（详见 [`docs/blink/execution.md`](../blink/execution.md)、[`docs/blink/errors.md`](../blink/errors.md)）：
+  - 维护显式调用栈深度上限 `maxCallDepth`（CLI 默认 1024），超出 → `E_RT_STACK_OVERFLOW`。
+  - 对 **void** 函数、**当前块的最后一条语句**为**单独**的 **void** `deRfun` 调用（非 `std::rout`、非更大表达式的一部分）实施**尾调用优化**，该路径**不**按 Java 递归加深线程栈，故深尾递归通常先受 `maxCallDepth` 约束，而非 JVM `StackOverflowError`。
+  - **非尾**调用仍逐层进入 `call`，过深时可能在触发 `E_RT_STACK_OVERFLOW` **之前**因 JVM 栈溢出而异常终止；可观察行为以当前实现为准。

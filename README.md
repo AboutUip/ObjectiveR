@@ -45,14 +45,19 @@
 
 | 文档 | 内容 |
 |:--|:--|
+| [`logic-index.md`](docs/blink/logic-index.md) | **全逻辑速查**（主题→文档→源码） |
 | [`pipeline.md`](docs/blink/pipeline.md) | `ObrInterpreter#run`、CLI、`finally` |
+| [`project-preproc.md`](docs/blink/project-preproc.md) | 工程根、扫描、`#LINK` 与规范差异 |
 | [`lexing.md`](docs/blink/lexing.md) / [`parsing.md`](docs/blink/parsing.md) | 词法 / 语法 |
+| [`ast-reference.md`](docs/blink/ast-reference.md) | AST 节点与枚举字段表 |
 | [`modules.md`](docs/blink/modules.md) | 项目路径、多文件、`.mr`、`LibsProvisioner` |
 | [`version-directive.md`](docs/blink/version-directive.md) | `#VERSION` |
 | [`semantic-binding.md`](docs/blink/semantic-binding.md) | 语义、`FileStaticRegistry` |
 | [`overload-resolution.md`](docs/blink/overload-resolution.md) | `NumericWidening` |
-| [`execution.md`](docs/blink/execution.md) | 运行时、`std::rout`、静态槽 |
+| [`execution.md`](docs/blink/execution.md) | 运行时、`std::rout`、void 尾调用（TCO）、静态槽 |
+| [`runtime-model.md`](docs/blink/runtime-model.md) | `Value`/`Env`/栈等内部模型 |
 | [`errors.md`](docs/blink/errors.md) | `E_*` 前缀码 |
+| [`testing.md`](docs/blink/testing.md) | 单元测试类索引 |
 | [`audit.md`](docs/blink/audit.md) | 审计 `phase` |
 | [`implementation-scope.md`](docs/blink/implementation-scope.md) | 相对全集的实现边界 |
 | [`supporting.md`](docs/blink/supporting.md) / [`inventory.md`](docs/blink/inventory.md) | 支撑类型 · 源码↔文档对照 |
@@ -61,6 +66,7 @@
 
 | 其它 | 说明 |
 |:--|:--|
+| [`docs/obr/runtime.md`](docs/obr/runtime.md) | 执行模型、调用栈与实现注记（§5.2） |
 | [`docs/obr/system.md`](docs/obr/system.md) | `system.mr`、`std::rout`、`libs/` |
 | [`Expansion/README.md`](Expansion/README.md) | VS Code / Cursor 扩展（高亮、图标、打包） |
 

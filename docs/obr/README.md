@@ -10,7 +10,7 @@
 |------|------|
 | [overview.md](overview.md) | 规范总览（范围、**规范文档 Draft/Stable**、版本策略、基础约定、规范分层） |
 | [preprocessor.md](preprocessor.md) | 预处理指令（`#VERSION`、`#LINK`） |
-| [runtime.md](runtime.md) | 执行模型（启动输入、唯一 `main.obr`、根目录、资源扫描、入口函数） |
+| [runtime.md](runtime.md) | 执行模型（启动输入、唯一 `main.obr`、根目录、`libs/`、资源扫描、`static var`、入口函数、调用栈与实现注记 §5.2） |
 | [system.md](system.md) | `system.mr`、`namespace std`/`std::rout`、`libs/system.obr`、隐式 `import system`、`libs/` 托管 |
 | [visibility.md](visibility.md) | 可见性（`public`、`private`、默认可见性） |
 | [static.md](static.md) | `static`、静态表、唯一性与生命周期 |

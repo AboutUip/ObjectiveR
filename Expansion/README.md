@@ -11,11 +11,11 @@
 
 ## 目录里有什么
 
-当前内置示例如下（目录名含版本号，随发布可调整）：
+当前内置示例如下（目录名含历史版本号，**发布版本以子目录内 `package.json` 的 `version` 为准**）：
 
 | 路径 | 内容 |
 |------|------|
-| [`kitepromiss.objective-r-file-support-0.0.1/`](kitepromiss.objective-r-file-support-0.0.1/) | **ObjectiveR File Support**：`.obr` / `.mr` 语言注册、TextMate 语法、代码片段、语言配置、专用文件图标主题。 |
+| [`kitepromiss.objective-r-file-support-0.0.1/`](kitepromiss.objective-r-file-support-0.0.1/) | **ObjectiveR File Support**（当前 `package.json` **0.1.0**）：语法高亮、补全、诊断、Hover/跳转、片段、图标主题。 |
 
 扩展清单以各子目录内 `package.json` 的 `name`、`version`、`publisher` 为准；子目录 [`README.md`](kitepromiss.objective-r-file-support-0.0.1/README.md) 提供英文简要说明与打包命令。
 

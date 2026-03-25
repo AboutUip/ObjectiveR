@@ -1,5 +1,7 @@
 # 语法（`com.kitepromiss.obr.parse`）
 
+AST 各节点字段一览见 [ast-reference.md](ast-reference.md)。
+
 **类**：`Parser`（递归下降）、`TokenCursor`（向前看记号序列）。
 
 **输入**：`List<Token>`（由 `Lexer.readAllTokens` 产生）。  

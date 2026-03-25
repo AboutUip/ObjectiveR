@@ -48,7 +48,7 @@
 |--------|-----|
 | `E_RT_ROUT_ARG` | `RuntimeExecutor` |
 | `E_RT_IMPL_NOT_FOUND` | `RuntimeExecutor` |
-| `E_RT_STACK_OVERFLOW` | `RuntimeExecutor` |
+| `E_RT_STACK_OVERFLOW` | `RuntimeExecutor`（逻辑栈 `Frame` 深度 ≥ `maxCallDepth`，见 [execution.md](execution.md)） |
 | `E_RT_OVERLOAD_AMBIGUOUS` | `RuntimeExecutor` |
 | `E_RT_LITERAL_UNSUPPORTED` | `RuntimeExecutor` |
 | `E_RT_NAME_UNKNOWN` | `RuntimeExecutor` |
@@ -59,6 +59,8 @@
 | `E_RT_STATIC_FILE_DUP` | `RuntimeExecutor`（文件级 static 同名冲突） |
 | `E_RT_STATIC_LOCAL_REDECL` | `RuntimeExecutor`（同一函数再次执行 `static var` 且同名槽已存在） |
 | `E_RT_COMPOUND_UNINIT` | `RuntimeExecutor` |
+
+**与 JVM `StackOverflowError` 的区别**：后者为 Java 线程栈耗尽，常出现在**非尾**的深递归路径上，且深度往往**小于** `maxCallDepth`。void **尾调用**路径经优化后通常不会因此类原因溢出；详见 [execution.md](execution.md)「void 尾调用（TCO）」。
 
 ---
 
