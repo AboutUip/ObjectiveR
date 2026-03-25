@@ -19,7 +19,8 @@
 | [comments.md](comments.md) | 注释（`//` 与 `/* ... */`） |
 | [types.md](types.md) | 基础类型、`undefined`/`null`、字面量与位宽 |
 | [scope.md](scope.md) | 作用域、标识符词法、解析顺序 |
-| [operators.md](operators.md) | 运算符、隐性转化、优先级 |
+| [operators.md](operators.md) | 运算符、隐性转化、§1.2 数值提升（JS `Number`）、`ToBoolean`、优先级 |
+| [control-flow.md](control-flow.md) | `if` / `else` / `else if`、`?:`、条件与布尔转换 |
 
 **上级目录**：[docs 说明](../README.md)
 

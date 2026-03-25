@@ -1,6 +1,13 @@
 package com.kitepromiss.obr.ast;
 
-public sealed interface Expr permits Expr.Literal, Expr.NameRef, Expr.Binary, Expr.Unary, Expr.Invoke, Expr.Postfix, Expr.PrefixUpdate {
+public sealed interface Expr permits Expr.Literal,
+        Expr.NameRef,
+        Expr.Binary,
+        Expr.Unary,
+        Expr.Invoke,
+        Expr.Postfix,
+        Expr.PrefixUpdate,
+        Expr.Conditional {
 
     record Literal(String lexeme) implements Expr {}
 
@@ -15,11 +22,21 @@ public sealed interface Expr permits Expr.Literal, Expr.NameRef, Expr.Binary, Ex
         MUL,
         DIV,
         MOD,
-        /** 幂；静态类型为 {@code double}（与 JS number 语义接近）。 */
-        POW
+        POW,
+        EQ,
+        NE,
+        LT,
+        LE,
+        GT,
+        GE,
+        AND,
+        OR
     }
 
     record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}
+
+    /** 三元 {@code a ? b : c}（右结合）。 */
+    record Conditional(Expr cond, Expr thenExpr, Expr elseExpr) implements Expr {}
 
     /** 后缀自增/自减（操作数须为单标识符或经括号归约为变量）。 */
     enum PostfixOp {

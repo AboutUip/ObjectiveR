@@ -49,8 +49,19 @@ public enum TokenKind {
     COLON,     // :
     DOUBLE_COLON, // ::
     AT,        // @
-    /** 赋值 {@code =}（与 {@code ==} 区分，当前无 {@code ==}） */
+    /** 赋值 {@code =} */
     EQ,
+    /** 相等 {@code ==} */
+    EQ_EQ,
+    /** 不等 {@code !=} */
+    NE,
+    LT,
+    LE,
+    GT,
+    GE,
+    AND_AND,
+    OR_OR,
+    QUESTION,
 
     // 关键字（保留字）
     PUBLIC, PRIVATE, STATIC,
@@ -60,4 +71,6 @@ public enum TokenKind {
     DE_RFUN, IMPORT, NAMESPACE,
     RETURN,
     VAR,
+    IF,
+    ELSE,
 }

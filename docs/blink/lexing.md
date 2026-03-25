@@ -35,7 +35,7 @@
    - `"` → `readString()`
    - `'` → `readCharLiteral()`（合法性交由 `CharLiteralParser.parseCharLexeme`）
    - `@` → `AT`
-   - 单字符界符与运算符：`{ } ( ) [ ] ; , + - % ~ . /` 等；`+` 再看 `+` → `PLUS_PLUS` 或 `=` → `PLUS_EQ` 或 `PLUS`；`-` 同理 → `MINUS_MINUS` / `MINUS_EQ` / `MINUS`；`*` 再看 `*` → `STAR_STAR` 或 `=` → `STAR_EQ` 或 `STAR`；`/`、`%` 再看 `=` → `SLASH_EQ` / `PERCENT_EQ` 或单字符；`:` 再看 `:` → `DOUBLE_COLON` 或 `COLON`；`=` 单字符 → `EQ`（无 `==`）
+   - 单字符界符与运算符：`{ } ( ) [ ] ; , + - % ~ . /` 等；`+` 再看 `+` → `PLUS_PLUS` 或 `=` → `PLUS_EQ` 或 `PLUS`；`-` 同理 → `MINUS_MINUS` / `MINUS_EQ` / `MINUS`；`*` 再看 `*` → `STAR_STAR` 或 `=` → `STAR_EQ` 或 `STAR`；`/`、`%` 再看 `=` → `SLASH_EQ` / `PERCENT_EQ` 或单字符；`:` 再看 `:` → `DOUBLE_COLON` 或 `COLON`；**`=` 再看 `=` → `EQ_EQ`**，否则 **`EQ`**；**`<` / `>` 再看 `=` → `LE` / `GE`**，否则 **`LT` / `GT`**；**`!` 再看 `=` → `NE`**；**`&` 再看 `&` → `AND_AND`**，否则 **抛错**（提示使用 `&&`）；**`|` 再看 `|` → `OR_OR`**，否则 **抛错**（提示使用 `||`）；**`?` → `QUESTION`**
    - 其它 → `ObrException`（无法识别字符，含 Unicode 码点）
 
 ---
@@ -48,7 +48,7 @@
 
 ### `TokenKind`（与 `TokenKind.java` 一致）
 
-`EOF`、`IDENT`、`NUMBER`、`STRING_LITERAL`、`CHAR_LITERAL`、`PREPROCESSOR_LINE`；界符 `LBRACE`…`EQ`；复合 `PLUS_PLUS`、`PLUS_EQ`、`MINUS_MINUS`、`MINUS_EQ`、`STAR_STAR`、`STAR_EQ`、`SLASH_EQ`、`PERCENT_EQ`、`DOUBLE_COLON`；关键字 `PUBLIC`、`PRIVATE`、`STATIC`、`TRUE`、`FALSE`、`NULL`、`UNDEFINED`、`BYTE`…`BOOLEAN`、`VOID`、`DE_RFUN`、`IMPORT`、`NAMESPACE`、`RETURN`、`VAR`。
+`EOF`、`IDENT`、`NUMBER`、`STRING_LITERAL`、`CHAR_LITERAL`、`PREPROCESSOR_LINE`；界符 `LBRACE`…；比较与逻辑 **`EQ_EQ`、`NE`、`LT`、`LE`、`GT`、`GE`、`AND_AND`、`OR_OR`、`QUESTION`**；赋值 `EQ`；复合 `PLUS_PLUS`、`PLUS_EQ`、`MINUS_MINUS`、`MINUS_EQ`、`STAR_STAR`、`STAR_EQ`、`SLASH_EQ`、`PERCENT_EQ`、`DOUBLE_COLON`；关键字含 **`IF`、`ELSE`** 及 `PUBLIC`、`PRIVATE`、`STATIC`、`TRUE`、`FALSE`、`NULL`、`UNDEFINED`、`BYTE`…`BOOLEAN`、`VOID`、`DE_RFUN`、`IMPORT`、`NAMESPACE`、`RETURN`、`VAR`。
 
 ---
 

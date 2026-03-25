@@ -43,6 +43,8 @@
 | `Assign` | `String name`, `AssignOp op`, `Expr value` | 简单赋值或复合赋值；左侧为单标识符 |
 | `Update` | `String name`, `UpdateKind kind` | `++`/`--` 语句形式 |
 | `StaticMark` | `String name` | `static ident;`，将已有局部标为 static |
+| **`If`** | `Expr cond`, `Stmt thenStmt`, `Stmt elseStmtOrNull` | `if ( Cond ) …`；可选 `else`（含 `else if` 链） |
+| **`Nop`** | （无字段） | 空语句 `;` |
 
 ### `Stmt.AssignOp`
 
@@ -61,14 +63,15 @@
 | `Literal` | `String lexeme` | 数字 / 字符串 / `true`/`false`/`null`/`undefined` / `char` 等原始词面 |
 | `NameRef` | `String name` | 标识符求值 |
 | `Invoke` | `CallExpr call` | 作为表达式的调用 |
-| `Binary` | `Expr left`, `BinaryOp op`, `Expr right` | 算术 / 幂 |
+| `Binary` | `Expr left`, `BinaryOp op`, `Expr right` | 算术、比较、相等、逻辑、`+` 拼接等 |
+| **`Conditional`** | `Expr cond`, `Expr thenExpr`, `Expr elseExpr` | 三元 `?:` |
 | `Unary` | `UnaryOp op`, `Expr operand` | 一元 `+ - ! ~` |
 | `Postfix` | `Expr operand`, `PostfixOp op` | 后缀 `++`/`--`，求值为旧值 |
 | `PrefixUpdate` | `Expr operand`, `PostfixOp op` | 前缀 `++`/`--`，求值为新值 |
 
 ### `Expr.BinaryOp`
 
-`ADD`, `SUB`, `MUL`, `DIV`, `MOD`, `POW`（`**`，静态类型按语义为 `double`）。
+`ADD`, `SUB`, `MUL`, `DIV`, `MOD`, `POW`（`**`），**`EQ`/`NE`/`LT`/`LE`/`GT`/`GE`**，**`AND`/`OR`**（`&&`/`||`）。静态结果类型见 [semantic-binding.md](semantic-binding.md)。
 
 ### `Expr.PostfixOp`
 

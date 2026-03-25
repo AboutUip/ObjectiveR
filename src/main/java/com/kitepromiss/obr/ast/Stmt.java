@@ -9,7 +9,9 @@ public sealed interface Stmt
                 Stmt.Block,
                 Stmt.Assign,
                 Stmt.Update,
-                Stmt.StaticMark {
+                Stmt.StaticMark,
+                Stmt.If,
+                Stmt.Nop {
 
     /** 简单 {@code =} 与复合赋值 {@code +=} 等。 */
     enum AssignOp {
@@ -50,4 +52,10 @@ public sealed interface Stmt
 
     /** {@code static ident;}，将已存在的局部变量标为 static（运行时迁入函数静态存储）。 */
     record StaticMark(String name) implements Stmt {}
+
+    /** {@code if ( Cond ) StmtOrBlock [ else StmtOrBlock ]} */
+    record If(Expr cond, Stmt thenStmt, Stmt elseStmtOrNull) implements Stmt {}
+
+    /** 空语句 {@code ;} */
+    record Nop() implements Stmt {}
 }

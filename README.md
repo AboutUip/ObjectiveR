@@ -57,9 +57,9 @@
 | [`execution.md`](docs/blink/execution.md) | 运行时、`std::rout`、void 尾调用（TCO）、静态槽 |
 | [`runtime-model.md`](docs/blink/runtime-model.md) | `Value`/`Env`/栈等内部模型 |
 | [`errors.md`](docs/blink/errors.md) | `E_*` 前缀码 |
-| [`testing.md`](docs/blink/testing.md) | 单元测试类索引 |
+| [`testing.md`](docs/blink/testing.md) | `src/test`、回归用例与 `testsupport` 夹具 |
 | [`audit.md`](docs/blink/audit.md) | 审计 `phase` |
-| [`implementation-scope.md`](docs/blink/implementation-scope.md) | 相对全集的实现边界 |
+| [`implementation-scope.md`](docs/blink/implementation-scope.md) | 相对全集边界（控制流、比较/逻辑、`?:`、拼接、整型除零等已实现范围） |
 | [`supporting.md`](docs/blink/supporting.md) / [`inventory.md`](docs/blink/inventory.md) | 支撑类型 · 源码↔文档对照 |
 
 </details>
@@ -67,6 +67,7 @@
 | 其它 | 说明 |
 |:--|:--|
 | [`docs/obr/runtime.md`](docs/obr/runtime.md) | 执行模型、调用栈与实现注记（§5.2） |
+| [`docs/obr/control-flow.md`](docs/obr/control-flow.md) | `if`/`else`、`?:`、`ToBoolean` |
 | [`docs/obr/system.md`](docs/obr/system.md) | `system.mr`、`std::rout`、`libs/` |
 | [`Expansion/README.md`](Expansion/README.md) | VS Code / Cursor 扩展（高亮、图标、打包） |
 

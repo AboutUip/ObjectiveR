@@ -97,7 +97,7 @@
       "patterns": [
         {
           "name": "keyword.control.objective-r",
-          "match": "\\b(import|namespace|return)\\b"
+          "match": "\\b(import|namespace|return|if|else)\\b"
         },
         {
           "name": "storage.type.function.objective-r",

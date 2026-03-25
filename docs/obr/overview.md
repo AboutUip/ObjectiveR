@@ -70,6 +70,7 @@
 | 注释 | [comments.md](comments.md) |
 | 基础数据类型 | [types.md](types.md) |
 | 作用域与标识符 | [scope.md](scope.md) |
+| 条件分支与 `?:` | [control-flow.md](control-flow.md) |
 | 运算符 | [operators.md](operators.md) |
 
 ## 已确认约束

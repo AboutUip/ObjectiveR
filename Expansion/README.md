@@ -15,7 +15,7 @@
 
 | 路径 | 内容 |
 |------|------|
-| [`kitepromiss.objective-r-file-support-0.0.1/`](kitepromiss.objective-r-file-support-0.0.1/) | **ObjectiveR File Support**（当前 `package.json` **0.1.0**）：语法高亮、补全、诊断、Hover/跳转、片段、图标主题。 |
+| [`kitepromiss.objective-r-file-support-0.0.1/`](kitepromiss.objective-r-file-support-0.0.1/) | **ObjectiveR File Support**（当前 `package.json` **0.1.1**）：语法高亮、补全、诊断、Hover/跳转、片段、图标主题；与 Blink 同步 `if`/`else`、比较与逻辑运算符、`#VERSION`/`#LINK` 片段格式等。 |
 
 扩展清单以各子目录内 `package.json` 的 `name`、`version`、`publisher` 为准；子目录 [`README.md`](kitepromiss.objective-r-file-support-0.0.1/README.md) 提供英文简要说明与打包命令。
 
@@ -59,7 +59,7 @@
 ## 二次开发建议
 
 1. **复制目录**：复制整个扩展文件夹，修改 `package.json` 中的 `name`、`displayName`、`publisher`、`version`，避免与官方扩展 ID 冲突。
-2. **语法高亮**：编辑 `syntaxes/*.tmLanguage.json`（TextMate 语法）；与 [`docs/obr/`](../docs/obr/README.md) 中的关键字、运算符保持同步更易维护。
+2. **语法高亮**：编辑 `syntaxes/*.tmLanguage.json`（TextMate 语法）；与 [`docs/obr/`](../docs/obr/README.md) 中的关键字、运算符保持同步更易维护（含 `if`/`else`、`==`/`&&`/`||` 等与 Blink 词法一致）。
 3. **片段**：编辑 `snippets/*.code-snippets`，减轻手写 `deRfun`、`import` 等样板。
 4. **图标与主题**：替换 `icons/` 下 SVG，或调整 `objective-r-icon-theme.json`。
 5. **发布到市场**：需 [Azure DevOps Personal Access Token](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) 等，使用 `vsce publish`（详见 VS Code 官方文档）。

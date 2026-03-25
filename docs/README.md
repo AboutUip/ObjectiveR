@@ -24,6 +24,8 @@
 
 **编辑器扩展**（与解释器分仓打包）：[`Expansion/README.md`](../Expansion/README.md)
 
+**试跑示例**：仓库根 [`demo/`](../demo/)（`main.obr`、`test.mr`；行为以解释器与 [blink/implementation-scope.md](blink/implementation-scope.md) 为准）。
+
 ---
 
 ## 快速链接
@@ -36,7 +38,7 @@
 | [总览](obr/overview.md) | 范围、版本、分层 |
 | [执行模型](obr/runtime.md) | `main.obr`、根目录、`libs/`、`static var`、调用栈（§5.2） |
 | [系统与 `libs`](obr/system.md) | `system.mr`、`std::rout` |
-| [作用域](obr/scope.md) · [运算符](obr/operators.md) | 解析与运算 |
+| [作用域](obr/scope.md) · [运算符](obr/operators.md) · [条件分支](obr/control-flow.md) | 解析与运算、`if`/`?:` |
 
 ### 引擎（`docs/blink/`）
 

@@ -220,6 +220,23 @@ public final class Parser {
             expect(TokenKind.SEMICOLON);
             return new Stmt.Return(e);
         }
+        if (cur.check(TokenKind.IF)) {
+            cur.advance();
+            expect(TokenKind.LPAREN);
+            Expr cond = parseExpr();
+            expect(TokenKind.RPAREN);
+            Stmt then = parseStmt(fnReturn);
+            Stmt els = null;
+            if (cur.check(TokenKind.ELSE)) {
+                cur.advance();
+                els = parseStmt(fnReturn);
+            }
+            return new Stmt.If(cond, then, els);
+        }
+        if (cur.check(TokenKind.SEMICOLON)) {
+            cur.advance();
+            return new Stmt.Nop();
+        }
         if (cur.check(TokenKind.LBRACE)) {
             return new Stmt.Block(parseBlock(fnReturn));
         }
@@ -384,11 +401,75 @@ public final class Parser {
     }
 
     /**
-     * 表达式（与 {@code docs/obr/operators.md} 优先级对齐：{@code **} 右结合，{@code * / %} 高于 {@code + -}）。
-     * 后缀 {@code x++}/{@code x--} 见 {@link #parsePostfix(Expr)}；语句级前缀/独立后缀见 {@link #parseStmt(TypeRef)}。
+     * 表达式（与 {@code docs/obr/operators.md} §9 优先级对齐：{@code ?:} 最低，逻辑或/与，相等/关系，加减，{@code **} 右结合等）。
      */
     private Expr parseExpr() {
-        return parseAdditive();
+        return parseConditional();
+    }
+
+    private Expr parseConditional() {
+        Expr e = parseLogicalOr();
+        if (cur.check(TokenKind.QUESTION)) {
+            cur.advance();
+            Expr then = parseExpr();
+            expect(TokenKind.COLON);
+            Expr els = parseConditional();
+            return new Expr.Conditional(e, then, els);
+        }
+        return e;
+    }
+
+    private Expr parseLogicalOr() {
+        Expr e = parseLogicalAnd();
+        while (cur.check(TokenKind.OR_OR)) {
+            cur.advance();
+            e = new Expr.Binary(e, Expr.BinaryOp.OR, parseLogicalAnd());
+        }
+        return e;
+    }
+
+    private Expr parseLogicalAnd() {
+        Expr e = parseEquality();
+        while (cur.check(TokenKind.AND_AND)) {
+            cur.advance();
+            e = new Expr.Binary(e, Expr.BinaryOp.AND, parseEquality());
+        }
+        return e;
+    }
+
+    private Expr parseEquality() {
+        Expr e = parseRelational();
+        while (cur.check(TokenKind.EQ_EQ) || cur.check(TokenKind.NE)) {
+            boolean eq = cur.check(TokenKind.EQ_EQ);
+            cur.advance();
+            e = new Expr.Binary(e, eq ? Expr.BinaryOp.EQ : Expr.BinaryOp.NE, parseRelational());
+        }
+        return e;
+    }
+
+    private Expr parseRelational() {
+        Expr e = parseAdditive();
+        while (cur.check(TokenKind.LT)
+                || cur.check(TokenKind.LE)
+                || cur.check(TokenKind.GT)
+                || cur.check(TokenKind.GE)) {
+            Expr.BinaryOp op;
+            if (cur.check(TokenKind.LT)) {
+                cur.advance();
+                op = Expr.BinaryOp.LT;
+            } else if (cur.check(TokenKind.LE)) {
+                cur.advance();
+                op = Expr.BinaryOp.LE;
+            } else if (cur.check(TokenKind.GT)) {
+                cur.advance();
+                op = Expr.BinaryOp.GT;
+            } else {
+                cur.advance();
+                op = Expr.BinaryOp.GE;
+            }
+            e = new Expr.Binary(e, op, parseAdditive());
+        }
+        return e;
     }
 
     private Expr parseAdditive() {

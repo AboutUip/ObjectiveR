@@ -9,6 +9,8 @@ const KEYWORDS = [
   "import",
   "namespace",
   "return",
+  "if",
+  "else",
   "var",
   "public",
   "private",

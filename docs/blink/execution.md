@@ -60,10 +60,12 @@
 | `Stmt` | 行为 |
 |--------|------|
 | `Block` | 仅由 `executeStmtsWithTail` 处理（不在 `executeStmtWithoutBlock` 的 `switch` 中） |
+| **`If`** | 对条件 `evalExpr`；为真执行 `then` 子句，否则在有 `else` 时执行 `else`（单条或块由 `executeBranch` 处理）；与 void **尾调用**组合时通过 `StmtExecResult.TailVoidCall` 向上传递 |
+| **`Nop`** | 无操作 |
 | `Expression` | 非块末条或无法解析为 void 尾目标时：`executeCall` → `call` |
 | `Return` | `evalExpr` → `widenReturnValue` → 返回 |
 | `VarDecl` | `executeVarDecl`；`static` 且同名槽已存在 → `E_RT_STATIC_LOCAL_REDECL`（见 [`docs/obr/runtime.md`](../obr/runtime.md) §5.1） |
-| `Assign` | 复合未初始化等 → `E_RT_COMPOUND_UNINIT`（若适用） |
+| `Assign` | 含 `string` 的 `+=` 与数值复合赋值等；复合未初始化等 → `E_RT_COMPOUND_UNINIT`（若适用） |
 | `Update` | `++`/`--` |
 | `StaticMark` | 局部迁入 `statics` |
 
@@ -78,8 +80,11 @@
 | `Literal` | 字面量 → `Value` |
 | `NameRef` | `getValueForName`；文件级 static 多激活 → `E_RT_STATIC_FILE_DUP` |
 | `Invoke` | `call`；void 作值 → `E_RT_EXPR_UNSUPPORTED` |
-| `Unary` / `Binary` | 算术/逻辑非/按位非/幂等 |
+| **`Conditional`** | 先求条件；再求所选分支（**不**求值未选分支） |
+| `Unary` / `Binary` | **`&&`/`||`**：**短路**；**比较/相等**：整型关系、`string` 引用相等等；**算术/幂**：见 `evalBinary` / `evalPowExpr`；**`+`**：数值或 **字符串拼接**（`valueToConcatString` 等） |
 | `PrefixUpdate` / `PostfixUpdate` | `++`/`--`；后缀值为旧值 |
+
+**整型除零**：`int`/`long` 的 `/` 与 `%` 在除数为 0 时 → **`E_RT_INTEGER_DIV_ZERO`**（见 [errors.md](errors.md)）。`float`/`double` 不按该码抛出。
 
 未覆盖的变体 → `E_RT_EXPR_UNSUPPORTED`。
 

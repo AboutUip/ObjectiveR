@@ -44,6 +44,8 @@
 - `void`：`Stmt.Return` → `E_SEM_RETURN_IN_VOID`。
 - `Stmt.Return`：`inferType` 与声明返回类型 + `NumericWidening`；否则 `E_SEM_RETURN_VALUE_MISMATCH`。
 - `Stmt.Expression` / 赋值 / `++`/`--` / `VarDecl` 等：见各分支；`static` 标记重复等 → `E_SEM_STATIC_MARK_BAD`；文件级 static 同名类型不一致 → `E_SEM_STATIC_FILE_DUP`（解析用名时）。
+- **`Stmt.If`**：条件 `inferType` 须可用于布尔上下文；递归检查 `then` / `else` 子语句。
+- **`Stmt.Nop`**：无附加检查。
 
 ---
 
@@ -61,6 +63,15 @@
 ## `inferType` / `inferUnaryType` / `inferBinaryType`
 
 静态推断表达式类型关键字；`E_SEM_TYPE_INFER_*` 见 [errors.md](errors.md)。
+
+- **`Expr.Conditional`**：条件须可用于布尔上下文；**两分支类型须一致**。
+- **`Expr.Binary`**：按算子分派——相等、关系、逻辑与/或、`+`（含拼接）、算术、`**` 等；**`byte` 与其它数值不得混用**（与 `NumericExprTyping` 及 [`docs/obr/operators.md`](../obr/operators.md) §1.2 一致）。
+
+---
+
+## `NumericExprTyping`（`com.kitepromiss.obr.semantic`）
+
+二元数值提升与 **`byte` 混用**判定（`illegalByteMix`、`promotedArithmeticType`、`powResultType` 等），供 `SemanticBinder` 使用。详见源码与 [implementation-scope.md](implementation-scope.md)。
 
 ---
 

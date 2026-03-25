@@ -581,7 +581,26 @@ public final class SemanticBinder {
                                         + " 声明="
                                         + vi.typeKeyword);
                     }
+                } else if (as.op() == Stmt.AssignOp.ADD_ASSIGN && "string".equals(vi.typeKeyword)) {
+                    if (!isConcatRhsForStringAddAssign(inf)) {
+                        throw new ObrException(
+                                E_SEM_ASSIGN_TYPE
+                                        + " "
+                                        + mainPath
+                                        + ": string += 右侧类型不兼容: "
+                                        + as.name()
+                                        + " 推断="
+                                        + inf);
+                    }
                 } else {
+                    if ("string".equals(vi.typeKeyword) || "char".equals(vi.typeKeyword)) {
+                        throw new ObrException(
+                                E_SEM_ASSIGN_TYPE
+                                        + " "
+                                        + mainPath
+                                        + ": 复合赋值（除 string +=）不可用于 string/char: "
+                                        + as.name());
+                    }
                     if (!isNumericPrimitive(vi.typeKeyword)) {
                         throw new ObrException(
                                 E_SEM_ASSIGN_TYPE
@@ -590,7 +609,15 @@ public final class SemanticBinder {
                                         + ": 复合赋值仅适用于数值类型: "
                                         + as.name());
                     }
-                    if (!inf.equals(vi.typeKeyword)) {
+                    if (NumericExprTyping.isByte(vi.typeKeyword) && !"byte".equals(inf)) {
+                        throw new ObrException(
+                                E_SEM_ASSIGN_TYPE
+                                        + " "
+                                        + mainPath
+                                        + ": byte 复合赋值右侧须为 byte: "
+                                        + as.name());
+                    }
+                    if (!NumericExprTyping.isByte(vi.typeKeyword) && !inf.equals(vi.typeKeyword)) {
                         throw new ObrException(
                                 E_SEM_ASSIGN_TYPE
                                         + " "
@@ -619,6 +646,50 @@ public final class SemanticBinder {
                                     + up.name());
                 }
             }
+            case Stmt.If ifStmt -> {
+                String tc =
+                        inferType(
+                                mainPath,
+                                ifStmt.cond(),
+                                scopes,
+                                decls,
+                                callerRel,
+                                audit,
+                                runId,
+                                fileStatics,
+                                currentSig);
+                if (!allowsLogicalNotOperand(tc)) {
+                    throw new ObrException(
+                            E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": if 条件类型不可用于布尔上下文: " + tc);
+                }
+                checkStmt(
+                        mainPath,
+                        callerRel,
+                        ifStmt.thenStmt(),
+                        scopes,
+                        decls,
+                        audit,
+                        runId,
+                        voidFn,
+                        declaredRet,
+                        fileStatics,
+                        currentSig);
+                if (ifStmt.elseStmtOrNull() != null) {
+                    checkStmt(
+                            mainPath,
+                            callerRel,
+                            ifStmt.elseStmtOrNull(),
+                            scopes,
+                            decls,
+                            audit,
+                            runId,
+                            voidFn,
+                            declaredRet,
+                            fileStatics,
+                            currentSig);
+                }
+            }
+            case Stmt.Nop n -> {}
             case Stmt.StaticMark sm -> {
                 VarInfo vi = scopes.resolve(sm.name());
                 if (vi == null) {
@@ -871,6 +942,56 @@ public final class SemanticBinder {
             return inferUnaryType(
                     mainPath, u, scopes, decls, callerRel, audit, runId, fileStatics, currentSig);
         }
+        if (arg instanceof Expr.Conditional cond) {
+            String tc =
+                    inferType(
+                            mainPath,
+                            cond.cond(),
+                            scopes,
+                            decls,
+                            callerRel,
+                            audit,
+                            runId,
+                            fileStatics,
+                            currentSig);
+            if (!allowsLogicalNotOperand(tc)) {
+                throw new ObrException(
+                        E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": ?: 条件类型不可用于布尔上下文: " + tc);
+            }
+            String t1 =
+                    inferType(
+                            mainPath,
+                            cond.thenExpr(),
+                            scopes,
+                            decls,
+                            callerRel,
+                            audit,
+                            runId,
+                            fileStatics,
+                            currentSig);
+            String t2 =
+                    inferType(
+                            mainPath,
+                            cond.elseExpr(),
+                            scopes,
+                            decls,
+                            callerRel,
+                            audit,
+                            runId,
+                            fileStatics,
+                            currentSig);
+            if (!t1.equals(t2)) {
+                throw new ObrException(
+                        E_SEM_TYPE_INFER_EXPR
+                                + " "
+                                + mainPath
+                                + ": ?: 两分支类型须一致: "
+                                + t1
+                                + " 与 "
+                                + t2);
+            }
+            return t1;
+        }
         if (arg instanceof Expr.Binary b) {
             return inferBinaryType(
                     mainPath, b, scopes, decls, callerRel, audit, runId, fileStatics, currentSig);
@@ -940,34 +1061,6 @@ public final class SemanticBinder {
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
             FunctionSignature currentSig) {
-        if (b.op() == Expr.BinaryOp.POW) {
-            String t1 =
-                    inferType(
-                            mainPath,
-                            b.left(),
-                            scopes,
-                            decls,
-                            callerRel,
-                            audit,
-                            runId,
-                            fileStatics,
-                            currentSig);
-            String t2 =
-                    inferType(
-                            mainPath,
-                            b.right(),
-                            scopes,
-                            decls,
-                            callerRel,
-                            audit,
-                            runId,
-                            fileStatics,
-                            currentSig);
-            if (!t1.equals(t2) || !isNumericPrimitive(t1)) {
-                throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": ** 两侧须为相同数值类型");
-            }
-            return "double";
-        }
         String t1 =
                 inferType(
                         mainPath,
@@ -990,13 +1083,148 @@ public final class SemanticBinder {
                         runId,
                         fileStatics,
                         currentSig);
+        return switch (b.op()) {
+            case EQ, NE -> inferEqualityType(mainPath, b.op(), t1, t2);
+            case LT, LE, GT, GE -> inferRelationalType(mainPath, t1, t2);
+            case AND, OR -> inferLogicalAndOrType(mainPath, t1, t2);
+            case POW -> inferPowType(mainPath, t1, t2);
+            case ADD -> inferAddType(mainPath, t1, t2);
+            case SUB, MUL, DIV, MOD -> inferArithmeticType(mainPath, b.op(), t1, t2);
+        };
+    }
+
+    private static String inferEqualityType(
+            Path mainPath, Expr.BinaryOp op, String t1, String t2) {
         if (!t1.equals(t2)) {
-            throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 运算符两侧类型须一致: " + t1 + " 与 " + t2);
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 相等比较两侧类型须一致: " + t1 + " 与 " + t2);
         }
-        if (!isNumericPrimitive(t1)) {
-            throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 该算术运算符不支持类型: " + t1);
+        if (!equalityAllowedType(t1)) {
+            throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": ==/!= 不支持类型: " + t1);
         }
-        return t1;
+        return "boolean";
+    }
+
+    private static boolean equalityAllowedType(String t) {
+        return switch (t) {
+            case "byte", "short", "int", "long", "float", "double", "string", "char" -> true;
+            default -> false;
+        };
+    }
+
+    private static String inferRelationalType(Path mainPath, String t1, String t2) {
+        if (!t1.equals(t2)) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 关系运算两侧类型须一致: " + t1 + " 与 " + t2);
+        }
+        if (!relationalAllowedType(t1)) {
+            throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 关系运算仅支持 byte/short/int/long，实际 " + t1);
+        }
+        return "boolean";
+    }
+
+    private static boolean relationalAllowedType(String t) {
+        return switch (t) {
+            case "byte", "short", "int", "long" -> true;
+            default -> false;
+        };
+    }
+
+    private static String inferLogicalAndOrType(Path mainPath, String t1, String t2) {
+        if (!allowsLogicalNotOperand(t1) || !allowsLogicalNotOperand(t2)) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": &&/|| 操作数类型不支持: " + t1 + " / " + t2);
+        }
+        return "boolean";
+    }
+
+    private static String inferPowType(Path mainPath, String t1, String t2) {
+        if (!NumericExprTyping.isNumericPrimitive(t1) || !NumericExprTyping.isNumericPrimitive(t2)) {
+            throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": ** 须为数值类型");
+        }
+        try {
+            return NumericExprTyping.powResultType(t1, t2);
+        } catch (IllegalArgumentException e) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": ** 禁止 byte 与其它数值混用: " + t1 + " 与 " + t2);
+        }
+    }
+
+    private static String inferAddType(Path mainPath, String t1, String t2) {
+        if (isStringConcatShape(t1, t2)) {
+            if (concatenationForbidden(t1, t2)) {
+                throw new ObrException(
+                        E_SEM_TYPE_INFER_EXPR
+                                + " "
+                                + mainPath
+                                + ": + 拼接不允许与 boolean/null/undefined 等混合: "
+                                + t1
+                                + " 与 "
+                                + t2);
+            }
+            return "string";
+        }
+        if (!NumericExprTyping.isNumericPrimitive(t1) || !NumericExprTyping.isNumericPrimitive(t2)) {
+            throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": + 不支持类型: " + t1 + " 与 " + t2);
+        }
+        if (NumericExprTyping.illegalByteMix(t1, t2)) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 禁止 byte 与其它数值混用: " + t1 + " 与 " + t2);
+        }
+        if (NumericExprTyping.isByte(t1) && NumericExprTyping.isByte(t2)) {
+            return "byte";
+        }
+        try {
+            return NumericExprTyping.promotedArithmeticType(t1, t2);
+        } catch (IllegalArgumentException e) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 数值 + 类型不兼容: " + t1 + " 与 " + t2);
+        }
+    }
+
+    private static boolean isStringConcatShape(String t1, String t2) {
+        return "string".equals(t1)
+                || "string".equals(t2)
+                || "char".equals(t1)
+                || "char".equals(t2);
+    }
+
+    private static boolean concatenationForbidden(String t1, String t2) {
+        if ("boolean".equals(t1)
+                || "boolean".equals(t2)
+                || "null".equals(t1)
+                || "null".equals(t2)
+                || "undefined".equals(t1)
+                || "undefined".equals(t2)) {
+            return true;
+        }
+        return !isConcatenationSideAllowed(t1) || !isConcatenationSideAllowed(t2);
+    }
+
+    private static boolean isConcatenationSideAllowed(String t) {
+        return "string".equals(t)
+                || "char".equals(t)
+                || NumericExprTyping.isNumericPrimitive(t);
+    }
+
+    private static String inferArithmeticType(
+            Path mainPath, Expr.BinaryOp op, String t1, String t2) {
+        if (!NumericExprTyping.isNumericPrimitive(t1) || !NumericExprTyping.isNumericPrimitive(t2)) {
+            throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 算术运算符须为数值类型");
+        }
+        if (NumericExprTyping.illegalByteMix(t1, t2)) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 禁止 byte 与其它数值混用: " + t1 + " 与 " + t2);
+        }
+        if (NumericExprTyping.isByte(t1) && NumericExprTyping.isByte(t2)) {
+            return "byte";
+        }
+        try {
+            return NumericExprTyping.promotedArithmeticType(t1, t2);
+        } catch (IllegalArgumentException e) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 运算符 " + op + " 类型不兼容: " + t1 + " 与 " + t2);
+        }
     }
 
     private static String inferPrefixUpdateType(
@@ -1051,6 +1279,12 @@ public final class SemanticBinder {
         return vi.typeKeyword;
     }
 
+    private static boolean isConcatRhsForStringAddAssign(String inf) {
+        return "string".equals(inf)
+                || "char".equals(inf)
+                || NumericExprTyping.isNumericPrimitive(inf);
+    }
+
     private static boolean allowsLogicalNotOperand(String t) {
         return "boolean".equals(t)
                 || isNumericPrimitive(t)
@@ -1061,7 +1295,7 @@ public final class SemanticBinder {
     }
 
     private static boolean isNumericPrimitive(String t) {
-        return "int".equals(t) || "long".equals(t) || "float".equals(t) || "double".equals(t);
+        return NumericExprTyping.isNumericPrimitive(t);
     }
 
     /**

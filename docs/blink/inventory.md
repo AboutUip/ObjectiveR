@@ -27,6 +27,7 @@
 | `semantic/FileStaticRegistry.java` | [semantic-binding.md](semantic-binding.md) |
 | `semantic/VersionDirectiveChecker.java` | [version-directive.md](version-directive.md) |
 | `semantic/NumericWidening.java` | [overload-resolution.md](overload-resolution.md) |
+| `semantic/NumericExprTyping.java` | [semantic-binding.md](semantic-binding.md)、[implementation-scope.md](implementation-scope.md) |
 | `semantic/ObrLanguageVersion.java` | [version-directive.md](version-directive.md)、[supporting.md](supporting.md) |
 | `semantic/FunctionSignature.java` | [semantic-binding.md](semantic-binding.md)、[overload-resolution.md](overload-resolution.md)、[supporting.md](supporting.md) |
 | `semantic/DeclaredFunction.java` | [semantic-binding.md](semantic-binding.md)、[supporting.md](supporting.md) |

@@ -52,6 +52,8 @@ AST 各节点字段一览见 [ast-reference.md](ast-reference.md)。
 | 前缀 / 形式 | 产出 `Stmt` |
 |-------------|-------------|
 | `return` | void → `err`；`return;` → `err`；否则 `parseExpr` + `;` → `Return` |
+| `if` `(` `parseExpr` `)` `parseStmt` | `If`；可选 `else` + `parseStmt` |
+| `;` | `Nop`（空语句） |
 | `{` … `}` | `Block`（嵌套 `parseBlock`） |
 | `public static` / `private static` | `parseVarDecl`（`PUBLIC_STATIC` / `PRIVATE_STATIC`） |
 | `static` | 后跟 `var` → `parseVarDecl(PUBLIC_STATIC)`；否则 `ident` + `;` → `StaticMark` |
@@ -67,11 +69,16 @@ AST 各节点字段一览见 [ast-reference.md](ast-reference.md)。
 
 ## 表达式
 
-自顶向下层次（与 `docs/obr/operators.md` 优先级一致）：
+`parseExpr()` 入口为 `parseConditional()`。自顶向下层次（与 [`docs/obr/operators.md`](../obr/operators.md) 优先级一致）：
 
-| 层次 | 方法 | 运算符 |
-|------|------|--------|
-| 加法级 | `parseAdditive` | `+` `-`（左结合） |
+| 层次 | 方法 | 运算符 / 说明 |
+|------|------|----------------|
+| 条件 | `parseConditional` | `?:`（右结合：`?` 后 `parseExpr`，`:` 后递归 `parseConditional`） |
+| 逻辑或 | `parseLogicalOr` | `||`（左结合） |
+| 逻辑与 | `parseLogicalAnd` | `&&`（左结合） |
+| 相等 | `parseEquality` | `==` `!=`（左结合） |
+| 关系 | `parseRelational` | `<` `<=` `>` `>=`（左结合） |
+| 加减 | `parseAdditive` | `+` `-`（左结合） |
 | 乘除模 | `parseMultiplicative` | `*` `/` `%`（左结合） |
 | 幂 | `parseExponent` | `**`（右结合：右侧递归 `parseExponent`） |
 | 一元 | `parseUnary` | 前缀 `++`/`--`（仅 `NameRef`）、`+` `-` `!` `~`，再 `parsePostfix(parsePrimary())` |
@@ -80,13 +87,11 @@ AST 各节点字段一览见 [ast-reference.md](ast-reference.md)。
 
 **`IDENT` 与调用**：先 `parseQualifiedName`；若下一记号是 `(` 则 `parseArgList` → `Expr.Invoke(CallExpr)`；若限定名仅一段则 `NameRef`；多段且非调用 → `err`（限定名须以调用出现）。
 
-**`parseExpr` 入口**：`parseAdditive()`。
-
 ---
 
 ## `Expr` 变体（`Expr.java`）
 
-`Literal`、`NameRef`、`Invoke`、`Unary`、`Binary`、`Postfix`、`PrefixUpdate`。
+`Literal`、`NameRef`、`Invoke`、`Unary`、`Binary`、`Postfix`、`PrefixUpdate`、**`Conditional`**（三元）。
 
 ---
 

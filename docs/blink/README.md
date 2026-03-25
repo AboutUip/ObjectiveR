@@ -24,17 +24,17 @@
 | [logic-index.md](logic-index.md) | **总索引**：逻辑主题 → 专题文档 → 类/方法 |
 | [pipeline.md](pipeline.md) | `Main`、`LaunchArgs`、`ObrInterpreter#run` 阶段顺序、`finally` |
 | [project-preproc.md](project-preproc.md) | `ProjectLocator`、`ObrProgramLoader` 扫描、预处理行消费与 **`#LINK` 差异** |
-| [lexing.md](lexing.md) | `Lexer`、`Token`、`TokenKind`、`CharLiteralParser`（摄入） |
-| [parsing.md](parsing.md) | `Parser`、`TokenCursor`、解析分支（摄入） |
+| [lexing.md](lexing.md) | `Lexer`、`Token`、`TokenKind`（含 `==`/`&&`/`||`/`?`/`if`/`else` 等）、`CharLiteralParser`（摄入） |
+| [parsing.md](parsing.md) | `Parser`、`TokenCursor`、`parseConditional` 等表达式优先级、语句 `if`/空 `;`（摄入） |
 | [ast-reference.md](ast-reference.md) | `ast` 包全部节点与枚举字段（对照源码） |
 | [modules.md](modules.md) | `LibsProvisioner`、`ObrProgramLoader`、`ObrProgramBundle`、`MrModuleIndex`、`ModuleLoader`、`ModuleBundle` |
 | [version-directive.md](version-directive.md) | `VersionDirectiveChecker`、`ObrLanguageVersion` |
-| [semantic-binding.md](semantic-binding.md) | `SemanticBinder`、`FileStaticRegistry`、`mergeProgramFileStatics`、声明/调用/`return` |
+| [semantic-binding.md](semantic-binding.md) | `SemanticBinder`、`NumericExprTyping`、`FileStaticRegistry`、`mergeProgramFileStatics`、声明/调用/`return`、表达式推断（比较/逻辑/`?:`/拼接等） |
 | [overload-resolution.md](overload-resolution.md) | `NumericWidening`、语义与运行时重载 |
-| [execution.md](execution.md) | `RuntimeExecutor`：`call`、`executeStmtsWithTail`、`evalExpr`、栈、`std::rout`、void 尾调用、静态槽 |
+| [execution.md](execution.md) | `RuntimeExecutor`：`call`、`executeStmtsWithTail`、`executeStmtWithoutBlock`（含 `if`/`Nop`）、`evalExpr`（短路/比较/拼接/整型除零）、栈、`std::rout`、void 尾调用、静态槽 |
 | [runtime-model.md](runtime-model.md) | `RuntimeExecutor` 内部 `Value`/`Env`/`StaticStore`/栈 |
 | [architecture.md](architecture.md) | 子包索引与数据流 |
-| [implementation-scope.md](implementation-scope.md) | 相对 `docs/obr/` 全集的边界 |
+| [implementation-scope.md](implementation-scope.md) | 相对 `docs/obr/` 全集的边界（**已实现**控制流、比较与逻辑、`?:`、字符串拼接、整型除零码等；见正文） |
 | [errors.md](errors.md) | `E_*` 与无前缀异常 |
 | [audit.md](audit.md) | `InterpreterAuditLog`、`TraceLevel`、`TraceCategory`、各阶段 `phase` |
 | [supporting.md](supporting.md) | 管线配角类型（`ObrException`、`ProjectResolution`、record 等） |

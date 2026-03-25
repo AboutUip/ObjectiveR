@@ -3,7 +3,7 @@
   "displayName": "ObjectiveR File Support",
   "description": "Obr / ModuleR: syntax highlighting, completion, hover, diagnostics, snippets, icons.",
   "icon": "icons/obr.svg",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "./extension.js",
   "publisher": "kitepromiss",
   "engines": {

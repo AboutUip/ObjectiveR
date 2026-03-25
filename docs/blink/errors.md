@@ -59,6 +59,7 @@
 | `E_RT_STATIC_FILE_DUP` | `RuntimeExecutor`（文件级 static 同名冲突） |
 | `E_RT_STATIC_LOCAL_REDECL` | `RuntimeExecutor`（同一函数再次执行 `static var` 且同名槽已存在） |
 | `E_RT_COMPOUND_UNINIT` | `RuntimeExecutor` |
+| `E_RT_INTEGER_DIV_ZERO` | `RuntimeExecutor`（`byte`/`short`/`int`/`long` 的 `/` 或 `%` 除数为 `0`，见 [`docs/obr/operators.md`](../obr/operators.md) §6.5） |
 
 **与 JVM `StackOverflowError` 的区别**：后者为 Java 线程栈耗尽，常出现在**非尾**的深递归路径上，且深度往往**小于** `maxCallDepth`。void **尾调用**路径经优化后通常不会因此类原因溢出；详见 [execution.md](execution.md)「void 尾调用（TCO）」。
 

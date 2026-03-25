@@ -9,7 +9,7 @@
 | 语义 | `SemanticBinder.resolveByNumericWiden` |
 | 运行时 | `RuntimeExecutor.resolveRuntimeSignature` |
 
-**语言规范交叉引用**：`docs/obr/operators.md`、`docs/obr/moduleR.md`。
+**语言规范交叉引用**：`docs/obr/operators.md` §1.2（表达式）、[`docs/obr/moduleR.md`](../obr/moduleR.md) §7.9（**仅调用点**加宽；表达式与解耦）。
 
 ---
 

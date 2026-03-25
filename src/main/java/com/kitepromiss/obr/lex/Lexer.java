@@ -40,6 +40,8 @@ public final class Lexer {
         KEYWORDS.put("namespace", TokenKind.NAMESPACE);
         KEYWORDS.put("return", TokenKind.RETURN);
         KEYWORDS.put("var", TokenKind.VAR);
+        KEYWORDS.put("if", TokenKind.IF);
+        KEYWORDS.put("else", TokenKind.ELSE);
     }
 
     private final String source;
@@ -218,6 +220,10 @@ public final class Lexer {
             }
             case '!' -> {
                 advance();
+                if (peek() == '=') {
+                    advance();
+                    yield emit(token(TokenKind.NE, "!=", tokenLine, tokenColumn));
+                }
                 yield emit(token(TokenKind.BANG, "!", tokenLine, tokenColumn));
             }
             case ':' -> {
@@ -230,7 +236,47 @@ public final class Lexer {
             }
             case '=' -> {
                 advance();
+                if (peek() == '=') {
+                    advance();
+                    yield emit(token(TokenKind.EQ_EQ, "==", tokenLine, tokenColumn));
+                }
                 yield emit(token(TokenKind.EQ, "=", tokenLine, tokenColumn));
+            }
+            case '<' -> {
+                advance();
+                if (peek() == '=') {
+                    advance();
+                    yield emit(token(TokenKind.LE, "<=", tokenLine, tokenColumn));
+                }
+                yield emit(token(TokenKind.LT, "<", tokenLine, tokenColumn));
+            }
+            case '>' -> {
+                advance();
+                if (peek() == '=') {
+                    advance();
+                    yield emit(token(TokenKind.GE, ">=", tokenLine, tokenColumn));
+                }
+                yield emit(token(TokenKind.GT, ">", tokenLine, tokenColumn));
+            }
+            case '&' -> {
+                advance();
+                if (peek() == '&') {
+                    advance();
+                    yield emit(token(TokenKind.AND_AND, "&&", tokenLine, tokenColumn));
+                }
+                throw err("单字符 '&' 未支持；请使用 '&&' 表示逻辑与");
+            }
+            case '|' -> {
+                advance();
+                if (peek() == '|') {
+                    advance();
+                    yield emit(token(TokenKind.OR_OR, "||", tokenLine, tokenColumn));
+                }
+                throw err("单字符 '|' 未支持；请使用 '||' 表示逻辑或");
+            }
+            case '?' -> {
+                advance();
+                yield emit(token(TokenKind.QUESTION, "?", tokenLine, tokenColumn));
             }
             default -> throw err("无法识别的字符: '" + c + "' (U+" + String.format("%04X", (int) c) + ")");
         };

@@ -9,16 +9,43 @@
   "Version Directive": {
     "prefix": "#VERSION",
     "body": [
-      "#VERSION: ${1:1.0};"
+      "#VERSION ${1:1}"
     ],
-    "description": "Insert #VERSION directive"
+    "description": "Insert #VERSION line (see docs/obr/preprocessor.md)"
   },
   "Link Directive": {
     "prefix": "#LINK",
     "body": [
-      "#LINK: ${1:/};"
+      "#LINK ${1:/}"
     ],
-    "description": "Insert #LINK directive"
+    "description": "Insert #LINK line (see docs/obr/preprocessor.md)"
+  },
+  "if else": {
+    "prefix": "ifelse",
+    "body": [
+      "if (${1:cond}) {",
+      "\t${2}",
+      "} else {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "if / else block"
+  },
+  "else if": {
+    "prefix": "elif",
+    "body": [
+      "else if (${1:cond}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "else if block"
+  },
+  "ternary": {
+    "prefix": "tern",
+    "body": [
+      "${1:cond} ? ${2:then} : ${3:else}"
+    ],
+    "description": "Conditional expression ? :"
   },
   "deRfun Function": {
     "prefix": "deRfun",
