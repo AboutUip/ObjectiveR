@@ -22,13 +22,25 @@
 | `E_SEM_TYPE_INFER_LITERAL` | `SemanticBinder` |
 | `E_SEM_TYPE_INFER_NAME` | `SemanticBinder` |
 | `E_SEM_TYPE_INFER_EXPR` | `SemanticBinder` |
-| `E_SEM_VOID_EXPR` | `SemanticBinder` |
+| `E_SEM_VOID_EXPR` | `SemanticBinder`（`void` 调用作表达式值；**例外**：表达式语句**仅顶层** `Invoke` 可 void，见 `checkExprStmtExpr` 深度） |
 | `E_SEM_RETURN_IN_VOID` | `SemanticBinder` |
 | `E_SEM_RETURN_VALUE_MISMATCH` | `SemanticBinder` |
 | `E_SEM_VAR_DUP` | `SemanticBinder`、`FileStaticRegistry` |
 | `E_SEM_ASSIGN_TYPE` | `SemanticBinder` |
 | `E_SEM_STATIC_MARK_BAD` | `SemanticBinder`、`FileStaticRegistry` |
 | `E_SEM_STATIC_FILE_DUP` | `SemanticBinder` |
+| `E_SEM_LINK_ACCESS_DENIED` | `SemanticBinder`（`#LINK` 跨文件访问） |
+| `E_SEM_BREAK_OUTSIDE_LOOP` | `SemanticBinder`（`break` 不在循环体内） |
+| `E_SEM_CONTINUE_OUTSIDE_LOOP` | `SemanticBinder`（`continue` 不在循环体内） |
+
+---
+
+## 项目根与 `#LINK` 解析（`ProjectRootResolver` / `LinkParser`）
+
+| 前缀码 | 类 |
+|--------|-----|
+| `E_LINK_ROOT_MISMATCH` | `ProjectRootResolver`（入口 `main.obr` 与 `#LINK /main/main.obr` 映射不一致） |
+| `E_LINK_PARSE` | `LinkParser`（`#LINK` 行格式非法） |
 
 ---
 

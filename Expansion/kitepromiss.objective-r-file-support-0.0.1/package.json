@@ -3,7 +3,7 @@
   "displayName": "ObjectiveR File Support",
   "description": "Obr / ModuleR: syntax highlighting, completion, hover, diagnostics, snippets, icons.",
   "icon": "icons/obr.svg",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "main": "./extension.js",
   "publisher": "kitepromiss",
   "engines": {
@@ -35,7 +35,29 @@
           "type": "boolean",
           "default": true,
           "description": "工作区级检查：import、deRfun 声明形式、重复签名等。"
+        },
+        "objectiveR.semanticHighlighting.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "语义高亮（参数、局部变量、函数名、std:: 命名空间段）；依赖主题支持 editor.semanticHighlighting。"
+        },
+        "objectiveR.project.scanMode": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "mainObrAndLink"
+          ],
+          "default": "workspace",
+          "description": "workspace：索引全部工作区 *.obr/*.mr。mainObrAndLink：解析 main.obr 中 #LINK 路径项，在 projectRoot 下并集扫描（与 Blink 项目根一致）。"
         }
+      }
+    },
+    "configurationDefaults": {
+      "[objective-r-obr]": {
+        "editor.semanticHighlighting.enabled": true
+      },
+      "[objective-r-mr]": {
+        "editor.semanticHighlighting.enabled": true
       }
     },
     "languages": [

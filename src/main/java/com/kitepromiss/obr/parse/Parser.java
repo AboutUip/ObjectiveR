@@ -233,6 +233,24 @@ public final class Parser {
             }
             return new Stmt.If(cond, then, els);
         }
+        if (cur.check(TokenKind.WHILE)) {
+            cur.advance();
+            expect(TokenKind.LPAREN);
+            Expr cond = parseExpr();
+            expect(TokenKind.RPAREN);
+            Stmt body = parseStmt(fnReturn);
+            return new Stmt.While(cond, body);
+        }
+        if (cur.check(TokenKind.BREAK)) {
+            cur.advance();
+            expect(TokenKind.SEMICOLON);
+            return new Stmt.Break();
+        }
+        if (cur.check(TokenKind.CONTINUE)) {
+            cur.advance();
+            expect(TokenKind.SEMICOLON);
+            return new Stmt.Continue();
+        }
         if (cur.check(TokenKind.SEMICOLON)) {
             cur.advance();
             return new Stmt.Nop();
@@ -296,9 +314,9 @@ public final class Parser {
                 return new Stmt.Update(lhs, Stmt.UpdateKind.POSTFIX_DECR);
             }
         }
-        CallExpr call = parseCallExpr();
+        Expr expr = parseExpr();
         expect(TokenKind.SEMICOLON);
-        return new Stmt.Expression(call);
+        return new Stmt.Expression(expr);
     }
 
     private static boolean isAssignOperator(TokenKind k) {
@@ -401,9 +419,24 @@ public final class Parser {
     }
 
     /**
-     * 表达式（与 {@code docs/obr/operators.md} §9 优先级对齐：{@code ?:} 最低，逻辑或/与，相等/关系，加减，{@code **} 右结合等）。
+     * 表达式（与 {@code docs/obr/operators.md} §9 优先级对齐：赋值/复合赋值右结合且低于 {@code ?:}；
+     * {@code ||} / {@code &&}；{@code |} / {@code ^} / {@code &}；相等/关系；移位；加减；{@code **} 右结合等）。
      */
     private Expr parseExpr() {
+        return parseAssignment();
+    }
+
+    /** 赋值表达式；左侧须为单段标识符（与语句级赋值一致）。 */
+    private Expr parseAssignment() {
+        if (cur.check(TokenKind.IDENT)) {
+            TokenKind k1 = cur.peekToken(1).kind();
+            if (isAssignOperator(k1)) {
+                String lhs = expectIdent();
+                Stmt.AssignOp op = parseAssignOp();
+                Expr rhs = parseAssignment();
+                return new Expr.Assign(lhs, op, rhs);
+            }
+        }
         return parseConditional();
     }
 
@@ -413,7 +446,8 @@ public final class Parser {
             cur.advance();
             Expr then = parseExpr();
             expect(TokenKind.COLON);
-            Expr els = parseConditional();
+            // else 须为 assignment-expression（含嵌套 `?:`）：`a?b:c=d`、`a?b:c?d:e` 等；若用 parseConditional 则 `b+=1` 会只解析成 `b`
+            Expr els = parseAssignment();
             return new Expr.Conditional(e, then, els);
         }
         return e;
@@ -429,10 +463,38 @@ public final class Parser {
     }
 
     private Expr parseLogicalAnd() {
-        Expr e = parseEquality();
+        Expr e = parseBitwiseOr();
         while (cur.check(TokenKind.AND_AND)) {
             cur.advance();
-            e = new Expr.Binary(e, Expr.BinaryOp.AND, parseEquality());
+            e = new Expr.Binary(e, Expr.BinaryOp.AND, parseBitwiseOr());
+        }
+        return e;
+    }
+
+    /** {@code |}（低于 {@code ^}） */
+    private Expr parseBitwiseOr() {
+        Expr e = parseBitwiseXor();
+        while (cur.check(TokenKind.PIPE)) {
+            cur.advance();
+            e = new Expr.Binary(e, Expr.BinaryOp.BIT_OR, parseBitwiseXor());
+        }
+        return e;
+    }
+
+    private Expr parseBitwiseXor() {
+        Expr e = parseBitwiseAnd();
+        while (cur.check(TokenKind.CARET)) {
+            cur.advance();
+            e = new Expr.Binary(e, Expr.BinaryOp.BIT_XOR, parseBitwiseAnd());
+        }
+        return e;
+    }
+
+    private Expr parseBitwiseAnd() {
+        Expr e = parseEquality();
+        while (cur.check(TokenKind.AMP)) {
+            cur.advance();
+            e = new Expr.Binary(e, Expr.BinaryOp.BIT_AND, parseEquality());
         }
         return e;
     }
@@ -448,7 +510,7 @@ public final class Parser {
     }
 
     private Expr parseRelational() {
-        Expr e = parseAdditive();
+        Expr e = parseShift();
         while (cur.check(TokenKind.LT)
                 || cur.check(TokenKind.LE)
                 || cur.check(TokenKind.GT)
@@ -467,9 +529,30 @@ public final class Parser {
                 cur.advance();
                 op = Expr.BinaryOp.GE;
             }
-            e = new Expr.Binary(e, op, parseAdditive());
+            e = new Expr.Binary(e, op, parseShift());
         }
         return e;
+    }
+
+    private Expr parseShift() {
+        Expr left = parseAdditive();
+        while (cur.check(TokenKind.LT_LT)
+                || cur.check(TokenKind.GT_GT)
+                || cur.check(TokenKind.GT_GT_GT)) {
+            Expr.BinaryOp op;
+            if (cur.check(TokenKind.GT_GT_GT)) {
+                cur.advance();
+                op = Expr.BinaryOp.USHR;
+            } else if (cur.check(TokenKind.GT_GT)) {
+                cur.advance();
+                op = Expr.BinaryOp.SHR;
+            } else {
+                cur.advance();
+                op = Expr.BinaryOp.SHL;
+            }
+            left = new Expr.Binary(left, op, parseAdditive());
+        }
+        return left;
     }
 
     private Expr parseAdditive() {

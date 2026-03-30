@@ -13,13 +13,17 @@ public final class CharLiteralParser {
      * @param lexeme 形如 {@code 'a'} 或 {@code '\''}（与 {@link Lexer} 输出一致）
      */
     public static char parseCharLexeme(String lexeme) {
-        if (lexeme == null || lexeme.length() < 3 || lexeme.charAt(0) != '\'' || lexeme.charAt(lexeme.length() - 1) != '\'') {
+        if (lexeme == null || lexeme.length() < 2) {
+            throw new ObrException("无效的 char 字面量: " + lexeme);
+        }
+        // 规范：`''` 与 `'\0'` 同值（U+0000），见 docs/obr/types.md、operators.md
+        if (lexeme.length() == 2 && lexeme.charAt(0) == '\'' && lexeme.charAt(1) == '\'') {
+            return '\0';
+        }
+        if (lexeme.length() < 3 || lexeme.charAt(0) != '\'' || lexeme.charAt(lexeme.length() - 1) != '\'') {
             throw new ObrException("无效的 char 字面量: " + lexeme);
         }
         String inner = lexeme.substring(1, lexeme.length() - 1);
-        if (inner.isEmpty()) {
-            throw new ObrException("空的 char 字面量");
-        }
         if (inner.charAt(0) != '\\') {
             if (inner.length() != 1) {
                 throw new ObrException("char 字面量只能包含一个字符: " + lexeme);

@@ -78,7 +78,7 @@
 |----|------|------|------|
 | `VersionDirectiveChecker` | — | `checkProgram` | [version-directive.md](version-directive.md) |
 | `ObrLanguageVersion` | `SUPPORTED` 常量 | — | [version-directive.md](version-directive.md) |
-| `SemanticBinder` | — | `bindObrFile`、`mergeProgramFileStatics`、`assertUniqueDeRfunDefinitions` | [semantic-binding.md](semantic-binding.md) |
+| `SemanticBinder` | — | `bindObrFile`、`mergeProgramFileStatics`、`assertUniqueDeRfunDefinitions`；`checkAssignSemantics`、`checkExprStmtExpr`、`inferType` | [semantic-binding.md](semantic-binding.md) |
 | `FileStaticRegistry` | 每 `.obr` 文件 static 登记 | `collect` | [semantic-binding.md](semantic-binding.md) |
 | `NumericWidening` | 纯函数 | `oneArgCost`、`totalWideningCost` | [overload-resolution.md](overload-resolution.md) |
 | `FunctionSignature` | `qualifiedName` + `paramTypes` | — | [semantic-binding.md](semantic-binding.md)、[overload-resolution.md](overload-resolution.md) |
@@ -90,7 +90,7 @@
 
 | 类 | 状态 | 入口 | 文档 |
 |----|------|------|------|
-| `RuntimeExecutor` | `defs`、`defOrigins`、`stack`、`functionStaticStores`、`fileStaticSlotsByName` | `executeMain` → `call` → `executeStmtsWithTail` / `executeStmtWithoutBlock` / `evalExpr` | [execution.md](execution.md)、[runtime-model.md](runtime-model.md) |
+| `RuntimeExecutor` | `defs`、`defOrigins`、`stack`、`functionStaticStores`、`fileStaticSlotsByName` | `executeMain` → `call` → `executeStmtsWithTail` / `executeStmtWithoutBlock` / `evalExpr` / `evalExprStmtDiscard` / `evalAssignExpression` | [execution.md](execution.md)、[runtime-model.md](runtime-model.md) |
 
 ---
 

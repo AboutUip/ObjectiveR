@@ -1,6 +1,6 @@
 # ObjectiveR 条件分支与条件表达式
 
-本文规定 `if` / `else`、`else if` 链、以及条件运算符 `?:` 的语法与语义；**条件表达式在运行时的真值**统一见 [`operators.md`](operators.md) §1.1（`ToBoolean`）。`while` / `for` 等循环不在本文范围。
+本文规定 `if` / `else`、`else if` 链、以及条件运算符 `?:` 的语法与语义；**条件表达式在运行时的真值**统一见 [`operators.md`](operators.md) §1.1（`ToBoolean`）。**`while` / `for` 等循环的规范条文**不在本文展开（全集可另立循环专题）；**BlinkEngine** 已实现 **`while`** 与无标签 **`break`/`continue`**（仅最近一层循环），可观察行为见 [`../blink/implementation-scope.md`](../blink/implementation-scope.md)、[`../blink/parsing.md`](../blink/parsing.md)、[`../blink/execution.md`](../blink/execution.md)。
 
 ---
 

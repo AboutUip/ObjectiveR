@@ -36,7 +36,7 @@
 
 | 变体 | 字段 | 说明 |
 |------|------|------|
-| `Expression` | `CallExpr call` | 单独调用表达式语句 |
+| `Expression` | `Expr expr` | 表达式语句（求值并丢弃；顶层可为 void 调用） |
 | `Return` | `Expr value` | 必有表达式；无 `return;` 形式 |
 | `VarDecl` | `VarVisibility visibility`, `TypeRef type`, `List<VarDeclarator> declarators` | `var` / `static var` / `public|private static var` |
 | `Block` | `BlockStmt body` | 嵌套块 |
@@ -44,6 +44,9 @@
 | `Update` | `String name`, `UpdateKind kind` | `++`/`--` 语句形式 |
 | `StaticMark` | `String name` | `static ident;`，将已有局部标为 static |
 | **`If`** | `Expr cond`, `Stmt thenStmt`, `Stmt elseStmtOrNull` | `if ( Cond ) …`；可选 `else`（含 `else if` 链） |
+| **`While`** | `Expr cond`, `Stmt body` | `while ( Cond ) …`；循环体为独立块作用域（见 [implementation-scope.md](implementation-scope.md)） |
+| **`Break`** | （无字段） | `break;`，仅最近一层循环（无标签） |
+| **`Continue`** | （无字段） | `continue;`，仅最近一层循环（无标签） |
 | **`Nop`** | （无字段） | 空语句 `;` |
 
 ### `Stmt.AssignOp`
@@ -65,13 +68,14 @@
 | `Invoke` | `CallExpr call` | 作为表达式的调用 |
 | `Binary` | `Expr left`, `BinaryOp op`, `Expr right` | 算术、比较、相等、逻辑、`+` 拼接等 |
 | **`Conditional`** | `Expr cond`, `Expr thenExpr`, `Expr elseExpr` | 三元 `?:` |
+| **`Assign`** | `String name`, `Stmt.AssignOp op`, `Expr value` | 赋值/复合赋值表达式（左为单标识符） |
 | `Unary` | `UnaryOp op`, `Expr operand` | 一元 `+ - ! ~` |
 | `Postfix` | `Expr operand`, `PostfixOp op` | 后缀 `++`/`--`，求值为旧值 |
 | `PrefixUpdate` | `Expr operand`, `PostfixOp op` | 前缀 `++`/`--`，求值为新值 |
 
 ### `Expr.BinaryOp`
 
-`ADD`, `SUB`, `MUL`, `DIV`, `MOD`, `POW`（`**`），**`EQ`/`NE`/`LT`/`LE`/`GT`/`GE`**，**`AND`/`OR`**（`&&`/`||`）。静态结果类型见 [semantic-binding.md](semantic-binding.md)。
+`ADD`, `SUB`, `MUL`, `DIV`, `MOD`, `POW`（`**`），**`EQ`/`NE`/`LT`/`LE`/`GT`/`GE`**，**`AND`/`OR`**（`&&`/`||`），**`BIT_AND`/`BIT_OR`/`BIT_XOR`**（`&`/`|`/`^`），**`SHL`/`SHR`/`USHR`**（`<<`/`>>`/`>>>`）。静态结果类型见 [semantic-binding.md](semantic-binding.md)（位运算与移位为 **`int`**）。
 
 ### `Expr.PostfixOp`
 

@@ -38,13 +38,23 @@
 
 ---
 
+## `checkAssignSemantics` / `checkExprStmtExpr`
+
+- **`checkAssignSemantics`**：`Stmt.Assign` 与 **`Expr.Assign`** 共用（类型与 `+=`/`byte` 等规则同 `checkStmt` 赋值分支）。
+- **`checkExprStmtExpr(expr, depth)`**：用于 **`Stmt.Expression`**；遍历子表达式；**`Invoke`** 若返回 **`void`** 且 **`depth > 0`** → **`E_SEM_VOID_EXPR`**（嵌套 `void()`）；根语句上 **`depth == 0`** 的 void 调用合法。
+
+---
+
 ## `checkCallsInBody`
 
 - 形参名 → 类型关键字。
 - `void`：`Stmt.Return` → `E_SEM_RETURN_IN_VOID`。
 - `Stmt.Return`：`inferType` 与声明返回类型 + `NumericWidening`；否则 `E_SEM_RETURN_VALUE_MISMATCH`。
-- `Stmt.Expression` / 赋值 / `++`/`--` / `VarDecl` 等：见各分支；`static` 标记重复等 → `E_SEM_STATIC_MARK_BAD`；文件级 static 同名类型不一致 → `E_SEM_STATIC_FILE_DUP`（解析用名时）。
+- `Stmt.Expression`：整棵 `Expr` 经 `checkExprStmtExpr`（含 `Invoke` 实参解析）；**`void` 调用**仅允许在表达式语句**顶层**（深度 0），嵌套处 → `E_SEM_VOID_EXPR`。`Expr.Assign` 与语句级赋值规则相同（`checkAssignSemantics`）。
+- 赋值 / `++`/`--` / `VarDecl` 等：见各分支；`static` 标记重复等 → `E_SEM_STATIC_MARK_BAD`；文件级 static 同名类型不一致 → `E_SEM_STATIC_FILE_DUP`（解析用名时）。
 - **`Stmt.If`**：条件 `inferType` 须可用于布尔上下文；递归检查 `then` / `else` 子语句。
+- **`Stmt.While`**：条件与 `if` 相同；`checkStmt` 传入 **`loopDepth + 1`** 检查循环体；体为 `Block` 时由 `Stmt.Block` 分支推栈，否则对单语句体额外 `scopes.push`/`pop`（与 [implementation-scope.md](implementation-scope.md) 一致）。
+- **`Stmt.Break` / `Stmt.Continue`**：仅当 **`loopDepth > 0`**（位于某一 `while` 体内）；否则 `E_SEM_BREAK_OUTSIDE_LOOP` / `E_SEM_CONTINUE_OUTSIDE_LOOP`（见 [errors.md](errors.md)）。
 - **`Stmt.Nop`**：无附加检查。
 
 ---
@@ -65,6 +75,7 @@
 静态推断表达式类型关键字；`E_SEM_TYPE_INFER_*` 见 [errors.md](errors.md)。
 
 - **`Expr.Conditional`**：条件须可用于布尔上下文；**两分支类型须一致**。
+- **`Expr.Assign`**：`checkAssignSemantics`；推断类型为左值变量类型关键字。
 - **`Expr.Binary`**：按算子分派——相等、关系、逻辑与/或、`+`（含拼接）、算术、`**` 等；**`byte` 与其它数值不得混用**（与 `NumericExprTyping` 及 [`docs/obr/operators.md`](../obr/operators.md) §1.2 一致）。
 
 ---

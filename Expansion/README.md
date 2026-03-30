@@ -15,7 +15,7 @@
 
 | 路径 | 内容 |
 |------|------|
-| [`kitepromiss.objective-r-file-support-0.0.1/`](kitepromiss.objective-r-file-support-0.0.1/) | **ObjectiveR File Support**（当前 `package.json` **0.1.1**）：语法高亮、补全、诊断、Hover/跳转、片段、图标主题；与 Blink 同步 `if`/`else`、比较与逻辑运算符、`#VERSION`/`#LINK` 片段格式等。 |
+| [`kitepromiss.objective-r-file-support-0.0.1/`](kitepromiss.objective-r-file-support-0.0.1/) | **ObjectiveR File Support**（当前 `package.json` **0.2.0**）：TextMate 语法高亮、**语义 token**（函数/参数/局部/命名空间段）、`#LINK` 感知的项目扫描、补全、诊断、Hover/跳转、片段、图标主题；与 Blink 同步 `if`/`else`、比较与逻辑运算符、`#VERSION`/`#LINK` 片段格式等。 |
 
 扩展清单以各子目录内 `package.json` 的 `name`、`version`、`publisher` 为准；子目录 [`README.md`](kitepromiss.objective-r-file-support-0.0.1/README.md) 提供英文简要说明与打包命令。
 

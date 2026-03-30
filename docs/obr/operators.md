@@ -223,14 +223,15 @@ ObjectiveR 的表达式运算符符号集合与 JavaScript 对齐。下列运算
 
 相对上文「与 JavaScript 对齐」全集的已实现子集与已知差异；细节见 [`docs/blink/implementation-scope.md`](../blink/implementation-scope.md) 与源码。
 
-| 类别 | 实现子集 |
+| 类别 | 实现子集（BlinkEngine，与 [implementation-scope.md](../blink/implementation-scope.md) 一致） |
 |------|----------|
 | 赋值与复合赋值 | 支持 `=`、`+=`、`-=`、`*=`、`/=`、`%=`（左侧为单标识符语句）；见 §3.3（`string` 仅 `+=`；`char` 目标复合赋值非法） |
 | 自增自减 | **语句**：`++x;`、`x++;`、`--x;`、`x--;`；**表达式**：前缀 `++x`/`--x`、后缀 `x++`/`x--`（操作数为变量；后缀表达式值为旧值，前缀为新值） |
-| 算术与一元 | 支持 `+ - * / %`、一元 `+ - ! ~`、幂 `**`（右结合）；`**` 按 §6.4 / §1.2（允许混合数值类型；`byte` 仅与 `byte`） |
-| `if` / `else`、`?:` | 见 [control-flow.md](control-flow.md)；**实现**见 [implementation-scope.md](../blink/implementation-scope.md) |
-| 关系 / 相等 / 位运算 / 逻辑 `&&` `\|\|` | **未**在解析器中实现为表达式（见 [implementation-scope.md](../blink/implementation-scope.md)） |
-| `+` 字符串拼接 | 规范见 §3.1；**实现**是否完成见 [implementation-scope.md](../blink/implementation-scope.md) |
+| 算术与一元 | 支持 `+ - * / %`、一元 `+ - ! ~`、幂 `**`（右结合）；**`~`**：操作数为**任意数值 primitive**（含 `byte`/`short`/`int`/`long`/`float`/`double`），结果 **`int`**（`ToInt32`，见 §6.3）；Blink 在静态语义上限制 **`byte` 不得与除 `byte` 外的其它数值混用于二元算术与 `**`**（与 §1.2 全文「JS 风格混用」相比为**更窄**的可运行子集，见 implementation-scope） |
+| `if` / `else`、`?:` | 已实现；见 [control-flow.md](control-flow.md) 与 [implementation-scope.md](../blink/implementation-scope.md) |
+| 相等 `==` `!=`、关系 `<` `<=` `>` `>=`、逻辑 `&&` `\|\|` | **已**在 `Parser` / `SemanticBinder` / `RuntimeExecutor` 中实现（短路、`?:` 与优先级见 implementation-scope） |
+| 位移 `<<` `>>` `>>>` 与二元位运算 `&` `\|` `^` | **已**实现（`Lexer` / `Parser` / `SemanticBinder` / `RuntimeExecutor`；移位量 mod 32、整型按 ECMAScript `ToInt32`/`ToUint32`）；一元按位取反 `~` **已**实现 |
+| `+` 字符串拼接 | 已实现（含与数值等允许侧的拼接规则）；见 [implementation-scope.md](../blink/implementation-scope.md) 与 `SemanticBinder#inferAddType` |
 
-完整规范条文仍以本节前文为准；实现未覆盖部分不得视为语言已废弃。
+完整规范条文仍以本节前文为准；**规范目标**与 Blink 当前子集不一致时，以 [implementation-scope.md](../blink/implementation-scope.md) 为 Blink 的可观察行为说明。
 

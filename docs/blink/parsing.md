@@ -53,6 +53,8 @@ AST 各节点字段一览见 [ast-reference.md](ast-reference.md)。
 |-------------|-------------|
 | `return` | void → `err`；`return;` → `err`；否则 `parseExpr` + `;` → `Return` |
 | `if` `(` `parseExpr` `)` `parseStmt` | `If`；可选 `else` + `parseStmt` |
+| `while` `(` `parseExpr` `)` `parseStmt` | `While`（循环体为独立块作用域，与 `SemanticBinder` / `RuntimeExecutor` 一致） |
+| `break` `;` / `continue` `;` | `Break` / `Continue`（无标签；语义上须位于循环体内） |
 | `;` | `Nop`（空语句） |
 | `{` … `}` | `Block`（嵌套 `parseBlock`） |
 | `public static` / `private static` | `parseVarDecl`（`PUBLIC_STATIC` / `PRIVATE_STATIC`） |
@@ -61,7 +63,7 @@ AST 各节点字段一览见 [ast-reference.md](ast-reference.md)。
 | `++` / `--` + `ident` + `;` | `Update`（前缀增/减） |
 | `ident` + `=` / `+=` / … + `expr` + `;` | `Assign` |
 | `ident` + `++` / `--` + `;`（用 `peekToken` 与赋值区分） | `Update`（后缀） |
-| 其它表达式起头 | `parseCallExpr` + `;` → `Expression` |
+| 其它表达式起头 | `parseExpr` + `;` → `Expression`（任意表达式语句；含 `void` 调用仅顶层合法，见语义） |
 
 `parseVarDecl`：`var[type] a, b = …;`；同一声明中要么全部带初值要么全部不带。
 
@@ -69,15 +71,18 @@ AST 各节点字段一览见 [ast-reference.md](ast-reference.md)。
 
 ## 表达式
 
-`parseExpr()` 入口为 `parseConditional()`。自顶向下层次（与 [`docs/obr/operators.md`](../obr/operators.md) 优先级一致）：
+`parseExpr()` 入口为 **`parseAssignment()`**（`ident` + `=`/`+=`/… + `parseAssignment` 右结合）；否则 **`parseConditional()`**。赋值/复合赋值优先级**低于** `?:`，故 `a ? b += c : d += e` 合法。自顶向下层次（与 [`docs/obr/operators.md`](../obr/operators.md) 优先级一致）：
 
 | 层次 | 方法 | 运算符 / 说明 |
 |------|------|----------------|
-| 条件 | `parseConditional` | `?:`（右结合：`?` 后 `parseExpr`，`:` 后递归 `parseConditional`） |
+| 赋值 | `parseAssignment` | `=` `+=` `-=` …（左侧单段 `ident`；右结合） |
+| 条件 | `parseConditional` | `?:`（右结合：`?` 后 `parseExpr`，`:` 后 `parseAssignment`，以支持 `?:` 分支内的赋值与嵌套 `?:`） |
 | 逻辑或 | `parseLogicalOr` | `||`（左结合） |
 | 逻辑与 | `parseLogicalAnd` | `&&`（左结合） |
+| 位或 / 位异或 / 位与 | `parseBitwiseOr` / `parseBitwiseXor` / `parseBitwiseAnd` | `\|` `^` `&`（左结合） |
 | 相等 | `parseEquality` | `==` `!=`（左结合） |
 | 关系 | `parseRelational` | `<` `<=` `>` `>=`（左结合） |
+| 移位 | `parseShift` | `<<` `>>` `>>>`（左结合） |
 | 加减 | `parseAdditive` | `+` `-`（左结合） |
 | 乘除模 | `parseMultiplicative` | `*` `/` `%`（左结合） |
 | 幂 | `parseExponent` | `**`（右结合：右侧递归 `parseExponent`） |
@@ -91,7 +96,7 @@ AST 各节点字段一览见 [ast-reference.md](ast-reference.md)。
 
 ## `Expr` 变体（`Expr.java`）
 
-`Literal`、`NameRef`、`Invoke`、`Unary`、`Binary`、`Postfix`、`PrefixUpdate`、**`Conditional`**（三元）。
+`Literal`、`NameRef`、`Invoke`、`Unary`、`Binary`、`Postfix`、`PrefixUpdate`、**`Conditional`**（三元）、**`Assign`**（赋值表达式）。
 
 ---
 

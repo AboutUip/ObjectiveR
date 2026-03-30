@@ -1,5 +1,7 @@
 const vscode = require("vscode");
 const path = require("path");
+const { collectAnalysisUris } = require("./projectScan");
+const { registerSemanticTokensProvider } = require("./semanticTokens");
 
 const LANGUAGE_IDS = ["objective-r-obr", "objective-r-mr"];
 
@@ -11,6 +13,9 @@ const KEYWORDS = [
   "return",
   "if",
   "else",
+  "while",
+  "break",
+  "continue",
   "var",
   "public",
   "private",
@@ -203,12 +208,8 @@ class ObrIndex {
     this.byFullName.clear();
     this.byShortName.clear();
     this.moduleNames.clear();
-    const [mrFiles, obrFiles] = await Promise.all([
-      vscode.workspace.findFiles("**/*.mr", "**/node_modules/**"),
-      vscode.workspace.findFiles("**/*.obr", "**/node_modules/**")
-    ]);
-
-    for (const uri of [...mrFiles, ...obrFiles]) {
+    const uris = await collectAnalysisUris();
+    for (const uri of uris) {
       await this.indexFile(uri);
     }
     this.workspaceReady = true;
@@ -828,16 +829,16 @@ async function activate(context) {
   let scheduledRefresh = null;
 
   const refreshDiagnosticsForAll = async () => {
-    const docs = await Promise.all(
-      (await vscode.workspace.findFiles("**/*.{obr,mr}", "**/node_modules/**")).map((uri) =>
-        vscode.workspace.openTextDocument(uri)
-      )
-    );
+    const uris = await collectAnalysisUris();
+    const docs = await Promise.all(uris.map((uri) => vscode.workspace.openTextDocument(uri)));
     for (const doc of docs) {
       const diags = collectDiagnosticsForDocument(doc, index);
       diagnosticCollection.set(doc.uri, diags);
     }
   };
+  const semanticTokensChangeEmitter = new vscode.EventEmitter();
+  context.subscriptions.push(semanticTokensChangeEmitter);
+
   const scheduleIndexAndDiagnosticsRefresh = (delayMs = 250) => {
     if (scheduledRefresh) clearTimeout(scheduledRefresh);
     scheduledRefresh = setTimeout(async () => {
@@ -845,6 +846,7 @@ async function activate(context) {
       try {
         await index.rebuild();
         await refreshDiagnosticsForAll();
+        semanticTokensChangeEmitter.fire();
       } catch (_e) {
         // Keep extension responsive if background refresh fails.
       }
@@ -1056,10 +1058,9 @@ async function activate(context) {
           .join("|");
         if (!pattern) return [];
 
+        const allUris = await collectAnalysisUris();
         const allDocs = await Promise.all(
-          (await vscode.workspace.findFiles("**/*.{obr,mr}", "**/node_modules/**")).map((uri) =>
-            vscode.workspace.openTextDocument(uri)
-          )
+          allUris.map((uri) => vscode.workspace.openTextDocument(uri))
         );
 
         const refRegex = new RegExp(`\\b(?:${pattern})\\b`, "g");
@@ -1083,7 +1084,13 @@ async function activate(context) {
     hoverProvider,
     signatureProvider,
     definitionProvider,
-    referenceProvider
+    referenceProvider,
+    registerSemanticTokensProvider(
+      vscode,
+      () => index,
+      () => vscode.workspace.getConfiguration("objectiveR"),
+      semanticTokensChangeEmitter.event
+    )
   );
 }
 

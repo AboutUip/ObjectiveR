@@ -40,15 +40,13 @@ public final class ProjectLocator {
         throw new ObrException("不支持的启动路径类型: " + input);
     }
 
-    private static ProjectResolution resolveFile(Path file) {
+    private static ProjectResolution resolveFile(Path file) throws IOException {
         if (!ENTRY_NAME.equals(file.getFileName().toString())) {
             throw new ObrException("入口文件必须严格命名为 main.obr（大小写敏感），实际为: " + file.getFileName());
         }
-        Path parent = file.getParent();
-        if (parent == null) {
-            throw new ObrException("无法确定 main.obr 所在目录");
-        }
-        return new ProjectResolution(file, parent);
+        String src = Files.readString(file);
+        Path root = ProjectRootResolver.resolveProjectRoot(file, src);
+        return new ProjectResolution(file, root);
     }
 
     private static ProjectResolution resolveDirectory(Path dir) throws IOException {
@@ -73,10 +71,8 @@ public final class ProjectLocator {
             throw new ObrException(sb.toString());
         }
         Path main = mains.getFirst();
-        Path parent = main.getParent();
-        if (parent == null) {
-            throw new ObrException("无法确定 main.obr 所在目录");
-        }
-        return new ProjectResolution(main, parent);
+        String src = Files.readString(main);
+        Path root = ProjectRootResolver.resolveProjectRoot(main, src);
+        return new ProjectResolution(main, root);
     }
 }

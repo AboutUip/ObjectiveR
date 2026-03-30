@@ -31,8 +31,8 @@
 
 ### void 尾调用（TCO）
 
-若当前函数为 **void**，且**当前语句块的最后一条语句**为**单独的**函数调用表达式（`foo();` 形式），且被调函数解析为 **void** 用户函数（非 `std::rout`），则该调用**不**再增加 JVM 调用栈：由 `call` 外层 `while` 承接，等价于循环跳转；实现入口为 `executeStmtsWithTail`、`tryResolveVoidTailCall`。  
-**非尾**位置上的递归（例如先 `loop();` 再 `std::rout(1);`）仍会逐层 `call`，受 `maxCallDepth` 与 JVM 栈限制。表达式中的调用（如 `std::rout(f())`）、非 void 返回值函数均不应用此优化。
+若当前函数为 **void**，且**当前语句块的最后一条语句**为 **`Stmt.Expression`** 且 **`expr` 为单独的 `Expr.Invoke`**（`foo();`），且被调函数解析为 **void** 用户函数（非 `std::rout`），则该调用**不**再增加 JVM 调用栈：由 `call` 外层 `while` 承接；入口为 `executeStmtsWithTail`、`tryResolveVoidTailCall`。  
+**非尾**位置、或非 `Invoke` 根表达式（如 `a + b;`）、或表达式中的调用（如 `std::rout(f())`），均不应用此优化。
 
 语言规范侧对调用栈的意图说明见 [`docs/obr/runtime.md`](../obr/runtime.md) §5.2；`E_RT_STACK_OVERFLOW` 与 JVM `StackOverflowError` 的对照见 [errors.md](errors.md)。
 
@@ -61,8 +61,10 @@
 |--------|------|
 | `Block` | 仅由 `executeStmtsWithTail` 处理（不在 `executeStmtWithoutBlock` 的 `switch` 中） |
 | **`If`** | 对条件 `evalExpr`；为真执行 `then` 子句，否则在有 `else` 时执行 `else`（单条或块由 `executeBranch` 处理）；与 void **尾调用**组合时通过 `StmtExecResult.TailVoidCall` 向上传递 |
+| **`While`** | 每轮先对条件 `evalExpr`，假则结束；真则执行循环体。体为 **`{ … }`** 时用 `executeBranch`（与块一致，每轮 `env.push`/`pop`）；**非块**单语句体每轮额外 `env.push`/`pop`。`ReturnedVal` / `TailVoidCall` 与 `If` 一样向上传递；循环体内 **`BreakLoop`** / **`ContinueLoop`** 由本语句消费（`break` 结束循环，`continue` 跳过本轮剩余语句并进入下一轮条件判断） |
+| **`Break`** / **`Continue`** | 分别返回 **`BreakLoop`** / **`ContinueLoop`**，向上传递直至被最近的 `While` 处理；若逃逸函数体则 `E_RT_*`（语义应已拒绝循环外使用） |
 | **`Nop`** | 无操作 |
-| `Expression` | 非块末条或无法解析为 void 尾目标时：`executeCall` → `call` |
+| `Expression` | `evalExprStmtDiscard`：根为 `Invoke` 时 `executeCall`（void 可）；否则 `evalExpr` 丢弃结果 |
 | `Return` | `evalExpr` → `widenReturnValue` → 返回 |
 | `VarDecl` | `executeVarDecl`；`static` 且同名槽已存在 → `E_RT_STATIC_LOCAL_REDECL`（见 [`docs/obr/runtime.md`](../obr/runtime.md) §5.1） |
 | `Assign` | 含 `string` 的 `+=` 与数值复合赋值等；复合未初始化等 → `E_RT_COMPOUND_UNINIT`（若适用） |
@@ -79,9 +81,10 @@
 |--------|------|
 | `Literal` | 字面量 → `Value` |
 | `NameRef` | `getValueForName`；文件级 static 多激活 → `E_RT_STATIC_FILE_DUP` |
-| `Invoke` | `call`；void 作值 → `E_RT_EXPR_UNSUPPORTED` |
+| `Invoke` | `call`；void 作值 → `E_RT_EXPR_UNSUPPORTED`（表达式语句顶层除外，见上） |
+| **`Assign`** | `evalAssignExpression`（与 `Stmt.Assign` 同路径）；求值为左变量类型对应的已写入值 |
 | **`Conditional`** | 先求条件；再求所选分支（**不**求值未选分支） |
-| `Unary` / `Binary` | **`&&`/`||`**：**短路**；**比较/相等**：整型关系、`string` 引用相等等；**算术/幂**：见 `evalBinary` / `evalPowExpr`；**`+`**：数值或 **字符串拼接**（`valueToConcatString` 等） |
+| `Unary` / `Binary` | **`&&`/`||`**：**短路**；**比较/相等**：整型关系、`string` 引用相等等；**`|^&` / 移位**：`ToInt32`/`ToUint32`、移位量 mod 32（见 `evalBitwiseOrShift`）；**算术/幂**：见 `evalBinary` / `evalPowExpr`；**`+`**：数值或 **字符串拼接**（`valueToConcatString` 等） |
 | `PrefixUpdate` / `PostfixUpdate` | `++`/`--`；后缀值为旧值 |
 
 **整型除零**：`int`/`long` 的 `/` 与 `%` 在除数为 0 时 → **`E_RT_INTEGER_DIV_ZERO`**（见 [errors.md](errors.md)）。`float`/`double` 不按该码抛出。

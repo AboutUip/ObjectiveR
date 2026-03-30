@@ -12,6 +12,7 @@ import com.kitepromiss.obr.parse.Parser;
 import com.kitepromiss.obr.project.ProjectLocator;
 import com.kitepromiss.obr.project.ProjectResolution;
 import com.kitepromiss.obr.runtime.RuntimeExecutor;
+import com.kitepromiss.obr.semantic.ProgramLinkIndex;
 import com.kitepromiss.obr.semantic.SemanticBinder;
 import com.kitepromiss.obr.semantic.VersionDirectiveChecker;
 import com.kitepromiss.obr.trace.InterpreterAuditLog;
@@ -122,6 +123,7 @@ public final class ObrInterpreter {
             VersionDirectiveChecker.checkProgram(program);
             SemanticBinder.assertUniqueDeRfunDefinitions(program);
             var programFileStatics = SemanticBinder.mergeProgramFileStatics(program);
+            ProgramLinkIndex linkIndex = ProgramLinkIndex.from(program, pr.projectRoot());
             for (ObrProgramBundle.ParsedObrFile f : program.files()) {
                 ModuleBundle modules = ModuleLoader.load(pr.projectRoot(), f.ast(), audit);
                 audit.event(
@@ -132,7 +134,7 @@ public final class ObrInterpreter {
                                 "path", f.path().toString(),
                                 "modules_loaded", Integer.toString(modules.loadOrder().size())));
                 SemanticBinder.bindObrFile(
-                        pr.projectRoot(), f.path(), f.ast(), modules, audit, runId, programFileStatics);
+                        pr.projectRoot(), f.path(), f.ast(), modules, audit, runId, linkIndex, programFileStatics);
             }
             audit.event(
                     TraceLevel.NORMAL,

@@ -54,6 +54,21 @@
 - **`docs/obr/`（本文及专题）**：描述 ObjectiveR **目标语言**的规则与判定，不逐项标注「解释器是否已实现」。
 - **当前参考实现 BlinkEngine 的实际支持范围**：见 [`../blink/README.md`](../blink/README.md)、[`../blink/implementation-scope.md`](../blink/implementation-scope.md)（实现说明，非规范正文）。
 
+### 语言版本 1 与 BlinkEngine：如何避免「全文规范 = 当前引擎」的误读
+
+草案阶段下，**专题条文**与 **Blink** 可能**不等价**：读者若需编写**当前可运行**程序，应以 **[`../blink/implementation-scope.md`](../blink/implementation-scope.md)** 为**可观察行为**清单；全文规范用于**目标语义**与演进方向。
+
+**非穷举对照**（细节仍以 `implementation-scope` 与源码为准）：
+
+| 读法 | 说明 |
+|------|------|
+| 运算符全文（如位移、二元位运算 `&` `\|` `^` 等） | 专题 [`operators.md`](operators.md) 描述优先级与语义；Blink 与全集的差异以 [`../blink/implementation-scope.md`](../blink/implementation-scope.md) 为准。 |
+| `#LINK`、项目根 | 专题 [`preprocessor.md`](preprocessor.md)、[`runtime.md`](runtime.md)；Blink 行为见 [`../blink/project-preproc.md`](../blink/project-preproc.md)。 |
+| `string` 的 `==` / `!=` | 专题 [`operators.md`](operators.md) §2（引用相等）；与「逐字符比较」不是同一语义。 |
+| `while` / `break` / `continue` | 专题 [`control-flow.md`](control-flow.md) 与 Blink 对照；可运行子集见 [`../blink/implementation-scope.md`](../blink/implementation-scope.md)。 |
+| 表达式语句、赋值表达式（`?:` 分支内 `+=` 等） | 非规范正文必备条文；Blink 见 [`../blink/parsing.md`](../blink/parsing.md)、[`../blink/implementation-scope.md`](../blink/implementation-scope.md)。 |
+| `char` 字面量 `''`、`string` 字面量驻留策略 | [`types.md`](types.md)、[`operators.md`](operators.md)；Blink：`''` 与 `new String` 字面量行为见 [`../blink/implementation-scope.md`](../blink/implementation-scope.md)。 |
+
 ## 规范分层
 
 以下链接指向本目录内专题文档（相对路径，便于在仓库内跳转）。

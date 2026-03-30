@@ -59,8 +59,20 @@ public enum TokenKind {
     LE,
     GT,
     GE,
+    /** 左移 {@code <<} */
+    LT_LT,
+    /** 有符号右移 {@code >>} */
+    GT_GT,
+    /** 无符号右移 {@code >>>} */
+    GT_GT_GT,
     AND_AND,
     OR_OR,
+    /** 位与 {@code &}（与 {@link #AND_AND} 区分） */
+    AMP,
+    /** 位或 {@code |}（与 {@link #OR_OR} 区分） */
+    PIPE,
+    /** 位异或 {@code ^} */
+    CARET,
     QUESTION,
 
     // 关键字（保留字）
@@ -73,4 +85,7 @@ public enum TokenKind {
     VAR,
     IF,
     ELSE,
+    WHILE,
+    BREAK,
+    CONTINUE,
 }

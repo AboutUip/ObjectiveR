@@ -115,6 +115,8 @@
 - 去除冗余尾部 `/`（根 `/` 除外）。
 - 比较前需完成同一规范化流程，否则实现不一致。
 
+**BlinkEngine（参考实现）**：`#LINK` 的访问判定与入口 `main.obr` 的项目根推导见 [`docs/blink/project-preproc.md`](../blink/project-preproc.md)（与本节一致）。
+
 ### 6) 你给出的示例（规范化解释）
 
 示例输入：

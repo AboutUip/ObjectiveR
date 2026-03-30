@@ -1,6 +1,6 @@
 # 工程解析与预处理（Blink 行为）
 
-语言规范中的预处理与项目根规则见 `docs/obr/preprocessor.md`、`docs/obr/runtime.md`。本节只描述 **Blink 源码实际怎么做**，便于与规范对照。
+语言规范中的预处理与项目根规则见 `docs/obr/preprocessor.md`、`docs/obr/runtime.md`。本节描述 **Blink 源码** 中的对应实现。
 
 ---
 
@@ -9,25 +9,26 @@
 | 输入 | 行为 |
 |------|------|
 | 路径不存在 | `ObrException`（无前缀码），消息含「路径不存在」 |
-| 普通文件 | 文件名**必须**为 `main.obr`（大小写敏感）；否则抛错。`ProjectResolution(mainObr, parent)`，**项目根** = `main.obr` **所在目录** |
-| 目录 | 递归遍历子树，收集名为 `main.obr` 的文件；0 个 → 错误；多于 1 个 → 错误（列出路径）；否则同上取父目录为项目根 |
+| 普通文件 | 文件名**必须**为 `main.obr`（大小写敏感）；否则抛错。读入该文件全文，由 `ProjectRootResolver.resolveProjectRoot(mainObr, source)` 结合 `main.obr` 中全部 `#LINK` 行（见 `LinkParser`）确定 **项目根** |
+| 目录 | 递归遍历子树，收集名为 `main.obr` 的文件；0 个 → 错误；多于 1 个 → 错误（列出路径）；对唯一 `main` 同上读源码并解析项目根 |
 | 非文件非目录 | `ObrException`「不支持的启动路径类型」 |
 | `IOException` | 包装为 `ObrException`「无法访问路径」 |
 
-**与语言规范差异（须牢记）**：`docs/obr/runtime.md` 中由 `#LINK` 语言空间推导项目根（例如入口映射为 `/main/main.obr` 时根为上一层）的规则，**当前 Blink 未实现**。解释器**从不**根据 `#LINK` 改写文件系统上的 `projectRoot`；`projectRoot` **始终**为磁盘上定位到的 `main.obr` 的父目录。`#LINK` 行仍保留在 AST 的 `ObrItem.Preproc` 中，但**不参与**路径计算。若将来实现规范，应改 `ProjectLocator` 或在其后增加一步「按 `main.obr` 预处理解析根」。
+### 项目根（与 `docs/obr/runtime.md` §3 一致）
 
-`ProjectResolution` 的 JavaDoc 中「默认 `#LINK /` 时根为 `main.obr` 所在目录」描述的是**与规范对齐的特例**；在 Blink 中即**当前唯一行为**。
+- **默认**或未列出 `#LINK`：等价 `#LINK /`，项目根 = `main.obr` **所在目录**。
+- **合并后的 `#LINK` 列表**（多行 `#LINK` 并集）中若存在规范化后的文件项 **`/main/main.obr`**：项目根 = `main.obr` 路径的**上两级**父目录，且须满足磁盘路径与 `<项目根>/main/main.obr` 规范化后一致，否则 → `E_LINK_ROOT_MISMATCH`（`ProjectRootResolver`）。
 
 ---
 
 ## `ObrProgramLoader.loadAllObr`
 
-- 起点：`projectRoot`（绝对规范化路径）。
+- 起点：`projectRoot`（绝对规范化路径，已由 `ProjectLocator` + `ProjectRootResolver` 确定）。
 - 将已解析的 `mainPath` + `mainAst` 作为第一条 `ParsedObrFile`。
 - `Files.walkFileTree`：对每个常规文件，扩展名为 `.obr` 且路径不等于 `main` 的，读入 → `Lexer.readAllTokens` → `Parser.parseObrFile` → 追加。
 - `preVisitDirectory`：目录名为 `.git`、`target`、`build`、`.idea`、`node_modules` 时 **SKIP_SUBTREE**。
 
-因此：**所有**可 walk 到的 `.obr`（除上述跳过树）都会进入同一 `ObrProgramBundle`，与 `main.obr` 的 `#LINK` 声明无关。
+因此：**所有**可 walk 到的 `.obr`（除上述跳过树）都会进入同一 `ObrProgramBundle`（与 `docs/obr/runtime.md` §4.1 全量扫描一致）。**不在**此阶段按 `#LINK` 排除文件；**跨文件符号访问**是否合法由 `ProgramLinkIndex` + `SemanticBinder` 按各文件的 `#LINK` 判定（见下）。
 
 ---
 
@@ -38,7 +39,7 @@
 | 词法 | `Lexer` 将 `#` 起始的**整行**（无换行）读为 `PREPROCESSOR_LINE` |
 | 语法 | `Parser.parseObrFile` 顶层遇到该记号 → `new ObrItem.Preproc(lexeme)` |
 | 语义 | **`VersionDirectiveChecker`** 仅识别符合正则的 `#VERSION <正整数>`（见 [version-directive.md](version-directive.md)）；同文件多条须一致且等于 `ObrLanguageVersion.SUPPORTED` |
-| 其它以 `#` 开头的行 | **保留在 AST 中**，当前**无**其它解释器阶段消费（包括 `#LINK`） |
+| **`#LINK`** | **`LinkParser`** 自源码合并各 `#LINK` **指令**（含逗号后换行续写，与规范 §4 一致）；`Lexer` 对 `#LINK` 续行产出**单条** `PREPROCESSOR_LINE`。**`ProgramLinkIndex.from`** 为每个 `.obr` 建立列表（无 `#LINK` 时等价 `["/"]`）。**`SemanticBinder`** 在跨文件调用 `deRfun` 实现或解析**跨文件 `public static`** 时，要求调用方路径命中被引用文件所声明的 `#LINK` 列表（**同文件**与 **`libs/` 下系统托管实现**除外）；违反 → `E_SEM_LINK_ACCESS_DENIED`。 |
 
 ---
 

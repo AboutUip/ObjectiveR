@@ -11,6 +11,9 @@ public sealed interface Stmt
                 Stmt.Update,
                 Stmt.StaticMark,
                 Stmt.If,
+                Stmt.While,
+                Stmt.Break,
+                Stmt.Continue,
                 Stmt.Nop {
 
     /** 简单 {@code =} 与复合赋值 {@code +=} 等。 */
@@ -31,7 +34,8 @@ public sealed interface Stmt
         POSTFIX_DECR
     }
 
-    record Expression(CallExpr call) implements Stmt {}
+    /** 表达式语句：求值并丢弃结果（顶层可为 void 调用，见语义 {@code checkExprStmtExpr}）。 */
+    record Expression(Expr expr) implements Stmt {}
 
     /** {@code return expr;}；禁止无表达式的 {@code return;}（解析阶段报错）。 */
     record Return(Expr value) implements Stmt {}
@@ -55,6 +59,15 @@ public sealed interface Stmt
 
     /** {@code if ( Cond ) StmtOrBlock [ else StmtOrBlock ]} */
     record If(Expr cond, Stmt thenStmt, Stmt elseStmtOrNull) implements Stmt {}
+
+    /** {@code while ( Cond ) StmtOrBlock}；循环体为独立块作用域（与 {@code {}} 或隐式帧一致）。 */
+    record While(Expr cond, Stmt body) implements Stmt {}
+
+    /** {@code break;}，仅作用于最近一层循环（无标签）。 */
+    record Break() implements Stmt {}
+
+    /** {@code continue;}，仅作用于最近一层循环（无标签）。 */
+    record Continue() implements Stmt {}
 
     /** 空语句 {@code ;} */
     record Nop() implements Stmt {}

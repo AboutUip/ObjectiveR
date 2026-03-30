@@ -1,6 +1,7 @@
 package com.kitepromiss.obr.lex;
 
 import com.kitepromiss.obr.ObrException;
+import com.kitepromiss.obr.project.LinkParser;
 import com.kitepromiss.obr.trace.InterpreterAuditLog;
 import com.kitepromiss.obr.trace.TraceCategory;
 import com.kitepromiss.obr.trace.TraceLevel;
@@ -42,6 +43,9 @@ public final class Lexer {
         KEYWORDS.put("var", TokenKind.VAR);
         KEYWORDS.put("if", TokenKind.IF);
         KEYWORDS.put("else", TokenKind.ELSE);
+        KEYWORDS.put("while", TokenKind.WHILE);
+        KEYWORDS.put("break", TokenKind.BREAK);
+        KEYWORDS.put("continue", TokenKind.CONTINUE);
     }
 
     private final String source;
@@ -194,6 +198,10 @@ public final class Lexer {
                 advance();
                 yield emit(token(TokenKind.TILDE, "~", tokenLine, tokenColumn));
             }
+            case '^' -> {
+                advance();
+                yield emit(token(TokenKind.CARET, "^", tokenLine, tokenColumn));
+            }
             case '.' -> {
                 advance();
                 yield emit(token(TokenKind.DOT, ".", tokenLine, tokenColumn));
@@ -248,6 +256,10 @@ public final class Lexer {
                     advance();
                     yield emit(token(TokenKind.LE, "<=", tokenLine, tokenColumn));
                 }
+                if (peek() == '<') {
+                    advance();
+                    yield emit(token(TokenKind.LT_LT, "<<", tokenLine, tokenColumn));
+                }
                 yield emit(token(TokenKind.LT, "<", tokenLine, tokenColumn));
             }
             case '>' -> {
@@ -255,6 +267,14 @@ public final class Lexer {
                 if (peek() == '=') {
                     advance();
                     yield emit(token(TokenKind.GE, ">=", tokenLine, tokenColumn));
+                }
+                if (peek() == '>') {
+                    advance();
+                    if (peek() == '>') {
+                        advance();
+                        yield emit(token(TokenKind.GT_GT_GT, ">>>", tokenLine, tokenColumn));
+                    }
+                    yield emit(token(TokenKind.GT_GT, ">>", tokenLine, tokenColumn));
                 }
                 yield emit(token(TokenKind.GT, ">", tokenLine, tokenColumn));
             }
@@ -264,7 +284,7 @@ public final class Lexer {
                     advance();
                     yield emit(token(TokenKind.AND_AND, "&&", tokenLine, tokenColumn));
                 }
-                throw err("单字符 '&' 未支持；请使用 '&&' 表示逻辑与");
+                yield emit(token(TokenKind.AMP, "&", tokenLine, tokenColumn));
             }
             case '|' -> {
                 advance();
@@ -272,7 +292,7 @@ public final class Lexer {
                     advance();
                     yield emit(token(TokenKind.OR_OR, "||", tokenLine, tokenColumn));
                 }
-                throw err("单字符 '|' 未支持；请使用 '||' 表示逻辑或");
+                yield emit(token(TokenKind.PIPE, "|", tokenLine, tokenColumn));
             }
             case '?' -> {
                 advance();
@@ -315,6 +335,34 @@ public final class Lexer {
             advance();
         }
         String lex = source.substring(start, pos);
+        String stripLeading = lex.stripLeading();
+        if (stripLeading.startsWith("#LINK") && LinkParser.endsWithLinkCommaContinuation(lex)) {
+            StringBuilder acc = new StringBuilder(stripLeading);
+            while (LinkParser.endsWithLinkCommaContinuation(acc.toString()) && pos < len) {
+                if (peek() == '\r' || peek() == '\n') {
+                    handleNewline();
+                } else {
+                    break;
+                }
+                while (pos < len && (peek() == ' ' || peek() == '\t')) {
+                    advance();
+                }
+                int start2 = pos;
+                while (pos < len) {
+                    char c = peek();
+                    if (c == '\r' || c == '\n') {
+                        break;
+                    }
+                    advance();
+                }
+                String cont = source.substring(start2, pos).strip();
+                if (cont.isEmpty()) {
+                    break;
+                }
+                acc.append(' ').append(cont);
+            }
+            lex = acc.toString();
+        }
         lineBegin = true;
         return token(TokenKind.PREPROCESSOR_LINE, lex, tokenLine, tokenColumn);
     }
@@ -384,6 +432,17 @@ public final class Lexer {
         advance(); // opening '
         if (pos >= len) {
             throw err("char 字面量未闭合");
+        }
+        // 空字面量 `''`（与 `'\0'` 同值）
+        if (peek() == '\'') {
+            advance();
+            String lex = source.substring(start, pos);
+            try {
+                CharLiteralParser.parseCharLexeme(lex);
+            } catch (ObrException e) {
+                throw err(e.getMessage());
+            }
+            return token(TokenKind.CHAR_LITERAL, lex, tokenLine, tokenColumn);
         }
         if (peek() == '\\') {
             advance();

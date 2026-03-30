@@ -7,7 +7,8 @@ public sealed interface Expr permits Expr.Literal,
         Expr.Invoke,
         Expr.Postfix,
         Expr.PrefixUpdate,
-        Expr.Conditional {
+        Expr.Conditional,
+        Expr.Assign {
 
     record Literal(String lexeme) implements Expr {}
 
@@ -15,6 +16,12 @@ public sealed interface Expr permits Expr.Literal,
 
     /** 作为表达式的函数调用（如 {@code foo()}、{@code std::rout(1)}、{@code return bar();}）。 */
     record Invoke(CallExpr call) implements Expr {}
+
+    /**
+     * 赋值/复合赋值表达式（如 {@code a = b}、{@code x += 1}）；右结合，优先级低于 {@code ?:}。
+     * 左侧须为单段标识符，与 {@link Stmt.Assign} 一致。
+     */
+    record Assign(String name, Stmt.AssignOp op, Expr value) implements Expr {}
 
     enum BinaryOp {
         ADD,
@@ -30,7 +37,16 @@ public sealed interface Expr permits Expr.Literal,
         GT,
         GE,
         AND,
-        OR
+        OR,
+        /** 位与 {@code &} */
+        BIT_AND,
+        /** 位或 {@code |} */
+        BIT_OR,
+        /** 位异或 {@code ^} */
+        BIT_XOR,
+        SHL,
+        SHR,
+        USHR
     }
 
     record Binary(Expr left, BinaryOp op, Expr right) implements Expr {}

@@ -48,6 +48,9 @@ public final class SemanticBinder {
     private static final String E_SEM_ASSIGN_TYPE = "E_SEM_ASSIGN_TYPE";
     private static final String E_SEM_STATIC_MARK_BAD = "E_SEM_STATIC_MARK_BAD";
     private static final String E_SEM_STATIC_FILE_DUP = "E_SEM_STATIC_FILE_DUP";
+    private static final String E_SEM_LINK_ACCESS_DENIED = "E_SEM_LINK_ACCESS_DENIED";
+    private static final String E_SEM_BREAK_OUTSIDE_LOOP = "E_SEM_BREAK_OUTSIDE_LOOP";
+    private static final String E_SEM_CONTINUE_OUTSIDE_LOOP = "E_SEM_CONTINUE_OUTSIDE_LOOP";
 
     private SemanticBinder() {}
 
@@ -124,12 +127,12 @@ public final class SemanticBinder {
     }
 
     public static void bindMainObr(Path projectRoot, Path mainPath, ObrFile obr, ModuleBundle modules) {
-        bindMainObr(projectRoot, mainPath, obr, modules, InterpreterAuditLog.silent(), "n/a");
+        bindMainObr(projectRoot, mainPath, obr, modules, InterpreterAuditLog.silent(), "n/a", null);
     }
 
     public static void bindMainObr(
             Path projectRoot, Path mainPath, ObrFile obr, ModuleBundle modules, InterpreterAuditLog audit) {
-        bindMainObr(projectRoot, mainPath, obr, modules, audit, "n/a");
+        bindMainObr(projectRoot, mainPath, obr, modules, audit, "n/a", null);
     }
 
     public static void bindMainObr(
@@ -138,8 +141,9 @@ public final class SemanticBinder {
             ObrFile obr,
             ModuleBundle modules,
             InterpreterAuditLog audit,
-            String runId) {
-        bindObrFile(projectRoot, mainPath, obr, modules, audit, runId);
+            String runId,
+            ProgramLinkIndex linkIndex) {
+        bindObrFile(projectRoot, mainPath, obr, modules, audit, runId, linkIndex);
     }
 
     /** 对单个 {@code .obr} 做语义绑定（不限于 {@code main.obr}）。 */
@@ -149,12 +153,13 @@ public final class SemanticBinder {
             ObrFile obr,
             ModuleBundle modules,
             InterpreterAuditLog audit,
-            String runId) {
-        bindObrFile(projectRoot, obrPath, obr, modules, audit, runId, null);
+            String runId,
+            ProgramLinkIndex linkIndex) {
+        bindObrFile(projectRoot, obrPath, obr, modules, audit, runId, linkIndex, null);
     }
 
     /**
-     * 与 {@link #bindObrFile(Path, Path, ObrFile, ModuleBundle, InterpreterAuditLog, String)} 相同，但可传入
+     * 与 {@link #bindObrFile(Path, Path, ObrFile, ModuleBundle, InterpreterAuditLog, String, ProgramLinkIndex)} 相同，但可传入
      * {@link #mergeProgramFileStatics(ObrProgramBundle)} 的结果，使 {@code public static} 跨同程序内其它 {@code .obr} 可见。
      */
     public static void bindObrFile(
@@ -164,12 +169,13 @@ public final class SemanticBinder {
             ModuleBundle modules,
             InterpreterAuditLog audit,
             String runId,
+            ProgramLinkIndex linkIndex,
             Map<String, List<FileStaticRegistry.Slot>> mergedFileStatics) {
         Map<String, List<FileStaticRegistry.Slot>> fileStatics =
                 mergedFileStatics != null
                         ? mergedFileStatics
                         : FileStaticRegistry.collect(obr, obrPath);
-        bindSingleObr(projectRoot, obrPath, obr, collectDeclarations(modules), audit, runId, fileStatics);
+        bindSingleObr(projectRoot, obrPath, obr, collectDeclarations(modules), audit, runId, fileStatics, linkIndex);
     }
 
     /** 合并程序内全部 {@code .obr} 的 static 登记（{@code #LINK} 同根下的 public static 跨文件解析）。 */
@@ -199,10 +205,20 @@ public final class SemanticBinder {
             ModuleBundle modules,
             InterpreterAuditLog audit,
             String runId) {
+        bindProgram(projectRoot, program, modules, audit, runId, null);
+    }
+
+    public static void bindProgram(
+            Path projectRoot,
+            ObrProgramBundle program,
+            ModuleBundle modules,
+            InterpreterAuditLog audit,
+            String runId,
+            ProgramLinkIndex linkIndex) {
         Map<FunctionSignature, List<DeclaredFunction>> decls = collectDeclarations(modules);
         Map<String, List<FileStaticRegistry.Slot>> programStatics = mergeProgramFileStatics(program);
         for (ObrProgramBundle.ParsedObrFile file : program.files()) {
-            bindSingleObr(projectRoot, file.path(), file.ast(), decls, audit, runId, programStatics);
+            bindSingleObr(projectRoot, file.path(), file.ast(), decls, audit, runId, programStatics, linkIndex);
         }
     }
 
@@ -213,7 +229,8 @@ public final class SemanticBinder {
             Map<FunctionSignature, List<DeclaredFunction>> decls,
             InterpreterAuditLog audit,
             String runId,
-            Map<String, List<FileStaticRegistry.Slot>> fileStatics) {
+            Map<String, List<FileStaticRegistry.Slot>> fileStatics,
+            ProgramLinkIndex linkIndex) {
         String callerRel = normalizedRelPath(projectRoot, obrPath);
         for (ObrItem item : obr.items()) {
             if (!(item instanceof ObrItem.DeRfunDef def)) {
@@ -267,7 +284,7 @@ public final class SemanticBinder {
                                 + only.moduleName()
                                 + ".mr");
             }
-            checkCallsInBody(obrPath, callerRel, def, decls, audit, runId, fileStatics, sig);
+            checkCallsInBody(obrPath, callerRel, def, decls, audit, runId, fileStatics, sig, linkIndex);
         }
     }
 
@@ -308,12 +325,13 @@ public final class SemanticBinder {
             InterpreterAuditLog audit,
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
-            FunctionSignature currentSig) {
+            FunctionSignature currentSig,
+            ProgramLinkIndex linkIndex) {
         ScopeStack scopes = new ScopeStack();
         scopes.push();
         for (Map.Entry<String, List<FileStaticRegistry.Slot>> e : fileStatics.entrySet()) {
             List<FileStaticRegistry.Slot> foreign =
-                    foreignSlots(e.getValue(), currentSig, mainPath);
+                    foreignSlots(e.getValue(), currentSig, mainPath, linkIndex, e.getKey());
             if (foreign.size() != 1) {
                 /* 0：无外来 static；>1：裸名无法唯一确定所有者，不预注入，待实际引用时再报错。 */
                 continue;
@@ -349,7 +367,9 @@ public final class SemanticBinder {
                 voidFn,
                 declaredRet,
                 fileStatics,
-                currentSig);
+                currentSig,
+                linkIndex,
+                0);
     }
 
     /**
@@ -359,7 +379,9 @@ public final class SemanticBinder {
     private static List<FileStaticRegistry.Slot> foreignSlots(
             List<FileStaticRegistry.Slot> slots,
             FunctionSignature currentSig,
-            Path currentObrPath) {
+            Path currentObrPath,
+            ProgramLinkIndex linkIndex,
+            String nameForError) {
         if (slots == null || slots.isEmpty()) {
             return List.of();
         }
@@ -368,8 +390,20 @@ public final class SemanticBinder {
             if (s.owner().equals(currentSig)) {
                 continue;
             }
-            if (sameObrFile(s.sourceObrPath(), currentObrPath)
-                    || s.visibility() == VarVisibility.PUBLIC_STATIC) {
+            if (sameObrFile(s.sourceObrPath(), currentObrPath)) {
+                out.add(s);
+            } else if (s.visibility() == VarVisibility.PUBLIC_STATIC) {
+                if (linkIndex != null && !linkIndex.allowsAccess(currentObrPath, s.sourceObrPath())) {
+                    throw new ObrException(
+                            E_SEM_LINK_ACCESS_DENIED
+                                    + " "
+                                    + currentObrPath
+                                    + ": #LINK 禁止从当前文件访问符号 "
+                                    + nameForError
+                                    + "（定义于 "
+                                    + s.sourceObrPath()
+                                    + "）");
+                }
                 out.add(s);
             }
         }
@@ -395,13 +429,14 @@ public final class SemanticBinder {
             String name,
             ScopeStack scopes,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
-            FunctionSignature currentSig) {
+            FunctionSignature currentSig,
+            ProgramLinkIndex linkIndex) {
         VarInfo vi = scopes.resolve(name);
         if (vi != null) {
             return vi;
         }
         List<FileStaticRegistry.Slot> foreign =
-                foreignSlots(fileStatics.getOrDefault(name, List.of()), currentSig, mainPath);
+                foreignSlots(fileStatics.getOrDefault(name, List.of()), currentSig, mainPath, linkIndex, name);
         if (foreign.isEmpty()) {
             return null;
         }
@@ -430,7 +465,9 @@ public final class SemanticBinder {
             boolean voidFn,
             String declaredRet,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
-            FunctionSignature currentSig) {
+            FunctionSignature currentSig,
+            ProgramLinkIndex linkIndex,
+            int loopDepth) {
         for (Stmt s : stmts) {
             checkStmt(
                     mainPath,
@@ -443,7 +480,9 @@ public final class SemanticBinder {
                     voidFn,
                     declaredRet,
                     fileStatics,
-                    currentSig);
+                    currentSig,
+                    linkIndex,
+                    loopDepth);
         }
     }
 
@@ -458,19 +497,23 @@ public final class SemanticBinder {
             boolean voidFn,
             String declaredRet,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
-            FunctionSignature currentSig) {
+            FunctionSignature currentSig,
+            ProgramLinkIndex linkIndex,
+            int loopDepth) {
         switch (s) {
             case Stmt.Expression exp ->
-                    checkCall(
+                    checkExprStmtExpr(
                             mainPath,
                             callerRel,
-                            exp.call(),
+                            exp.expr(),
                             scopes,
                             decls,
                             audit,
                             runId,
                             fileStatics,
-                            currentSig);
+                            currentSig,
+                            linkIndex,
+                            0);
             case Stmt.Return ret -> {
                 if (voidFn) {
                     throw new ObrException(E_SEM_RETURN_IN_VOID + " " + mainPath + ": void 函数不能使用 return");
@@ -485,6 +528,7 @@ public final class SemanticBinder {
                                 audit,
                                 runId,
                                 fileStatics,
+                                linkIndex,
                                 currentSig);
                 if (!returnValueAssignableToDeclared(inferred, declaredRet)) {
                     throw new ObrException(
@@ -516,6 +560,7 @@ public final class SemanticBinder {
                                         audit,
                                         runId,
                                         fileStatics,
+                                        linkIndex,
                                         currentSig);
                         if (!returnValueAssignableToDeclared(inf, ty)) {
                             throw new ObrException(
@@ -546,93 +591,29 @@ public final class SemanticBinder {
                             voidFn,
                             declaredRet,
                             fileStatics,
-                            currentSig);
+                            currentSig,
+                            linkIndex,
+                            loopDepth);
                 } finally {
                     scopes.pop();
                 }
             }
-            case Stmt.Assign as -> {
-                VarInfo vi = resolveNameForUse(mainPath, as.name(), scopes, fileStatics, currentSig);
-                if (vi == null) {
-                    throw new ObrException(
-                            E_SEM_TYPE_INFER_NAME + " " + mainPath + ": 赋值时未知标识符: " + as.name());
-                }
-                String inf =
-                        inferType(
-                                mainPath,
-                                as.value(),
-                                scopes,
-                                decls,
-                                callerRel,
-                                audit,
-                                runId,
-                                fileStatics,
-                                currentSig);
-                if (as.op() == Stmt.AssignOp.ASSIGN) {
-                    if (!returnValueAssignableToDeclared(inf, vi.typeKeyword)) {
-                        throw new ObrException(
-                                E_SEM_ASSIGN_TYPE
-                                        + " "
-                                        + mainPath
-                                        + ": 赋值类型不兼容: "
-                                        + as.name()
-                                        + " 推断="
-                                        + inf
-                                        + " 声明="
-                                        + vi.typeKeyword);
-                    }
-                } else if (as.op() == Stmt.AssignOp.ADD_ASSIGN && "string".equals(vi.typeKeyword)) {
-                    if (!isConcatRhsForStringAddAssign(inf)) {
-                        throw new ObrException(
-                                E_SEM_ASSIGN_TYPE
-                                        + " "
-                                        + mainPath
-                                        + ": string += 右侧类型不兼容: "
-                                        + as.name()
-                                        + " 推断="
-                                        + inf);
-                    }
-                } else {
-                    if ("string".equals(vi.typeKeyword) || "char".equals(vi.typeKeyword)) {
-                        throw new ObrException(
-                                E_SEM_ASSIGN_TYPE
-                                        + " "
-                                        + mainPath
-                                        + ": 复合赋值（除 string +=）不可用于 string/char: "
-                                        + as.name());
-                    }
-                    if (!isNumericPrimitive(vi.typeKeyword)) {
-                        throw new ObrException(
-                                E_SEM_ASSIGN_TYPE
-                                        + " "
-                                        + mainPath
-                                        + ": 复合赋值仅适用于数值类型: "
-                                        + as.name());
-                    }
-                    if (NumericExprTyping.isByte(vi.typeKeyword) && !"byte".equals(inf)) {
-                        throw new ObrException(
-                                E_SEM_ASSIGN_TYPE
-                                        + " "
-                                        + mainPath
-                                        + ": byte 复合赋值右侧须为 byte: "
-                                        + as.name());
-                    }
-                    if (!NumericExprTyping.isByte(vi.typeKeyword) && !inf.equals(vi.typeKeyword)) {
-                        throw new ObrException(
-                                E_SEM_ASSIGN_TYPE
-                                        + " "
-                                        + mainPath
-                                        + ": 复合赋值右侧类型须与变量一致: "
-                                        + as.name()
-                                        + " 推断="
-                                        + inf
-                                        + " 声明="
-                                        + vi.typeKeyword);
-                    }
-                }
-            }
+            case Stmt.Assign as ->
+                    checkAssignSemantics(
+                            mainPath,
+                            callerRel,
+                            as.name(),
+                            as.op(),
+                            as.value(),
+                            scopes,
+                            decls,
+                            audit,
+                            runId,
+                            fileStatics,
+                            currentSig,
+                            linkIndex);
             case Stmt.Update up -> {
-                VarInfo vi = resolveNameForUse(mainPath, up.name(), scopes, fileStatics, currentSig);
+                VarInfo vi = resolveNameForUse(mainPath, up.name(), scopes, fileStatics, currentSig, linkIndex);
                 if (vi == null) {
                     throw new ObrException(
                             E_SEM_TYPE_INFER_NAME + " " + mainPath + ": ++/-- 时未知标识符: " + up.name());
@@ -657,6 +638,7 @@ public final class SemanticBinder {
                                 audit,
                                 runId,
                                 fileStatics,
+                                linkIndex,
                                 currentSig);
                 if (!allowsLogicalNotOperand(tc)) {
                     throw new ObrException(
@@ -673,7 +655,9 @@ public final class SemanticBinder {
                         voidFn,
                         declaredRet,
                         fileStatics,
-                        currentSig);
+                        currentSig,
+                        linkIndex,
+                        loopDepth);
                 if (ifStmt.elseStmtOrNull() != null) {
                     checkStmt(
                             mainPath,
@@ -686,7 +670,78 @@ public final class SemanticBinder {
                             voidFn,
                             declaredRet,
                             fileStatics,
-                            currentSig);
+                            currentSig,
+                            linkIndex,
+                            loopDepth);
+                }
+            }
+            case Stmt.While wh -> {
+                String tc =
+                        inferType(
+                                mainPath,
+                                wh.cond(),
+                                scopes,
+                                decls,
+                                callerRel,
+                                audit,
+                                runId,
+                                fileStatics,
+                                linkIndex,
+                                currentSig);
+                if (!allowsLogicalNotOperand(tc)) {
+                    throw new ObrException(
+                            E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": while 条件类型不可用于布尔上下文: " + tc);
+                }
+                if (wh.body() instanceof Stmt.Block) {
+                    checkStmt(
+                            mainPath,
+                            callerRel,
+                            wh.body(),
+                            scopes,
+                            decls,
+                            audit,
+                            runId,
+                            voidFn,
+                            declaredRet,
+                            fileStatics,
+                            currentSig,
+                            linkIndex,
+                            loopDepth + 1);
+                } else {
+                    scopes.push();
+                    try {
+                        checkStmt(
+                                mainPath,
+                                callerRel,
+                                wh.body(),
+                                scopes,
+                                decls,
+                                audit,
+                                runId,
+                                voidFn,
+                                declaredRet,
+                                fileStatics,
+                                currentSig,
+                                linkIndex,
+                                loopDepth + 1);
+                    } finally {
+                        scopes.pop();
+                    }
+                }
+            }
+            case Stmt.Break() -> {
+                if (loopDepth <= 0) {
+                    throw new ObrException(
+                            E_SEM_BREAK_OUTSIDE_LOOP + " " + mainPath + ": break 仅允许出现在循环体内");
+                }
+            }
+            case Stmt.Continue() -> {
+                if (loopDepth <= 0) {
+                    throw new ObrException(
+                            E_SEM_CONTINUE_OUTSIDE_LOOP
+                                    + " "
+                                    + mainPath
+                                    + ": continue 仅允许出现在循环体内");
                 }
             }
             case Stmt.Nop n -> {}
@@ -728,6 +783,262 @@ public final class SemanticBinder {
         };
     }
 
+    /** 语句级赋值与 {@link Expr.Assign} 共用。 */
+    private static void checkAssignSemantics(
+            Path mainPath,
+            String callerRel,
+            String name,
+            Stmt.AssignOp op,
+            Expr value,
+            ScopeStack scopes,
+            Map<FunctionSignature, List<DeclaredFunction>> decls,
+            InterpreterAuditLog audit,
+            String runId,
+            Map<String, List<FileStaticRegistry.Slot>> fileStatics,
+            FunctionSignature currentSig,
+            ProgramLinkIndex linkIndex) {
+        VarInfo vi = resolveNameForUse(mainPath, name, scopes, fileStatics, currentSig, linkIndex);
+        if (vi == null) {
+            throw new ObrException(E_SEM_TYPE_INFER_NAME + " " + mainPath + ": 赋值时未知标识符: " + name);
+        }
+        String inf =
+                inferType(
+                        mainPath,
+                        value,
+                        scopes,
+                        decls,
+                        callerRel,
+                        audit,
+                        runId,
+                        fileStatics,
+                        linkIndex,
+                        currentSig);
+        if (op == Stmt.AssignOp.ASSIGN) {
+            if (!returnValueAssignableToDeclared(inf, vi.typeKeyword)) {
+                throw new ObrException(
+                        E_SEM_ASSIGN_TYPE
+                                + " "
+                                + mainPath
+                                + ": 赋值类型不兼容: "
+                                + name
+                                + " 推断="
+                                + inf
+                                + " 声明="
+                                + vi.typeKeyword);
+            }
+        } else if (op == Stmt.AssignOp.ADD_ASSIGN && "string".equals(vi.typeKeyword)) {
+            if (!isConcatRhsForStringAddAssign(inf)) {
+                throw new ObrException(
+                        E_SEM_ASSIGN_TYPE
+                                + " "
+                                + mainPath
+                                + ": string += 右侧类型不兼容: "
+                                + name
+                                + " 推断="
+                                + inf);
+            }
+        } else {
+            if ("string".equals(vi.typeKeyword) || "char".equals(vi.typeKeyword)) {
+                throw new ObrException(
+                        E_SEM_ASSIGN_TYPE
+                                + " "
+                                + mainPath
+                                + ": 复合赋值（除 string +=）不可用于 string/char: "
+                                + name);
+            }
+            if (!isNumericPrimitive(vi.typeKeyword)) {
+                throw new ObrException(
+                        E_SEM_ASSIGN_TYPE
+                                + " "
+                                + mainPath
+                                + ": 复合赋值仅适用于数值类型: "
+                                + name);
+            }
+            if (NumericExprTyping.isByte(vi.typeKeyword) && !"byte".equals(inf)) {
+                throw new ObrException(
+                        E_SEM_ASSIGN_TYPE
+                                + " "
+                                + mainPath
+                                + ": byte 复合赋值右侧须为 byte: "
+                                + name);
+            }
+            if (!NumericExprTyping.isByte(vi.typeKeyword) && !inf.equals(vi.typeKeyword)) {
+                throw new ObrException(
+                        E_SEM_ASSIGN_TYPE
+                                + " "
+                                + mainPath
+                                + ": 复合赋值右侧类型须与变量一致: "
+                                + name
+                                + " 推断="
+                                + inf
+                                + " 声明="
+                                + vi.typeKeyword);
+            }
+        }
+    }
+
+    /**
+     * 表达式语句：校验整棵表达式；{@code void} 调用仅允许在<strong>顶层</strong>（深度 0），与 {@link #inferType}
+     * 对 void 的限制一致。
+     */
+    private static void checkExprStmtExpr(
+            Path mainPath,
+            String callerRel,
+            Expr e,
+            ScopeStack scopes,
+            Map<FunctionSignature, List<DeclaredFunction>> decls,
+            InterpreterAuditLog audit,
+            String runId,
+            Map<String, List<FileStaticRegistry.Slot>> fileStatics,
+            FunctionSignature currentSig,
+            ProgramLinkIndex linkIndex,
+            int depth) {
+        switch (e) {
+            case Expr.Literal lit -> {}
+            case Expr.NameRef n -> {}
+            case Expr.Assign a ->
+                    checkAssignSemantics(
+                            mainPath,
+                            callerRel,
+                            a.name(),
+                            a.op(),
+                            a.value(),
+                            scopes,
+                            decls,
+                            audit,
+                            runId,
+                            fileStatics,
+                            currentSig,
+                            linkIndex);
+            case Expr.Invoke inv -> {
+                DeclaredFunction target =
+                        resolveCallDeclaration(
+                                mainPath,
+                                callerRel,
+                                inv.call(),
+                                scopes,
+                                decls,
+                                audit,
+                                runId,
+                                fileStatics,
+                                currentSig,
+                                linkIndex);
+                String ret = target.decl().returnType().keywordLexeme();
+                if ("void".equals(ret) && depth > 0) {
+                    throw new ObrException(
+                            E_SEM_VOID_EXPR
+                                    + " "
+                                    + mainPath
+                                    + ": void 函数调用不能作为表达式值: "
+                                    + inv.call().callee());
+                }
+            }
+            case Expr.Binary b -> {
+                checkExprStmtExpr(
+                        mainPath,
+                        callerRel,
+                        b.left(),
+                        scopes,
+                        decls,
+                        audit,
+                        runId,
+                        fileStatics,
+                        currentSig,
+                        linkIndex,
+                        depth + 1);
+                checkExprStmtExpr(
+                        mainPath,
+                        callerRel,
+                        b.right(),
+                        scopes,
+                        decls,
+                        audit,
+                        runId,
+                        fileStatics,
+                        currentSig,
+                        linkIndex,
+                        depth + 1);
+            }
+            case Expr.Unary u ->
+                    checkExprStmtExpr(
+                            mainPath,
+                            callerRel,
+                            u.operand(),
+                            scopes,
+                            decls,
+                            audit,
+                            runId,
+                            fileStatics,
+                            currentSig,
+                            linkIndex,
+                            depth + 1);
+            case Expr.Conditional c -> {
+                checkExprStmtExpr(
+                        mainPath,
+                        callerRel,
+                        c.cond(),
+                        scopes,
+                        decls,
+                        audit,
+                        runId,
+                        fileStatics,
+                        currentSig,
+                        linkIndex,
+                        depth + 1);
+                checkExprStmtExpr(
+                        mainPath,
+                        callerRel,
+                        c.thenExpr(),
+                        scopes,
+                        decls,
+                        audit,
+                        runId,
+                        fileStatics,
+                        currentSig,
+                        linkIndex,
+                        depth + 1);
+                checkExprStmtExpr(
+                        mainPath,
+                        callerRel,
+                        c.elseExpr(),
+                        scopes,
+                        decls,
+                        audit,
+                        runId,
+                        fileStatics,
+                        currentSig,
+                        linkIndex,
+                        depth + 1);
+            }
+            case Expr.Postfix p ->
+                    checkExprStmtExpr(
+                            mainPath,
+                            callerRel,
+                            p.operand(),
+                            scopes,
+                            decls,
+                            audit,
+                            runId,
+                            fileStatics,
+                            currentSig,
+                            linkIndex,
+                            depth + 1);
+            case Expr.PrefixUpdate p ->
+                    checkExprStmtExpr(
+                            mainPath,
+                            callerRel,
+                            p.operand(),
+                            scopes,
+                            decls,
+                            audit,
+                            runId,
+                            fileStatics,
+                            currentSig,
+                            linkIndex,
+                            depth + 1);
+        }
+    }
+
     private static void checkCall(
             Path mainPath,
             String callerRel,
@@ -737,9 +1048,19 @@ public final class SemanticBinder {
             InterpreterAuditLog audit,
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
-            FunctionSignature currentSig) {
+            FunctionSignature currentSig,
+            ProgramLinkIndex linkIndex) {
         resolveCallDeclaration(
-                mainPath, callerRel, call, scopes, decls, audit, runId, fileStatics, currentSig);
+                mainPath,
+                callerRel,
+                call,
+                scopes,
+                decls,
+                audit,
+                runId,
+                fileStatics,
+                currentSig,
+                linkIndex);
     }
 
     /**
@@ -754,7 +1075,8 @@ public final class SemanticBinder {
             InterpreterAuditLog audit,
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
-            FunctionSignature currentSig) {
+            FunctionSignature currentSig,
+            ProgramLinkIndex linkIndex) {
         List<String> argTypes = new ArrayList<>();
         for (Expr arg : call.arguments()) {
             argTypes.add(
@@ -767,6 +1089,7 @@ public final class SemanticBinder {
                             audit,
                             runId,
                             fileStatics,
+                            linkIndex,
                             currentSig));
         }
         String qn = String.join("::", call.callee().segments());
@@ -809,6 +1132,22 @@ public final class SemanticBinder {
                             + "，声明模块="
                             + target.moduleName()
                             + ".mr");
+        }
+        if (linkIndex != null) {
+            Path implPath = linkIndex.defPathFor(resolvedSig);
+            if (implPath != null && !sameObrFile(mainPath, implPath)) {
+                if (!linkIndex.allowsAccess(mainPath, implPath)) {
+                    throw new ObrException(
+                            E_SEM_LINK_ACCESS_DENIED
+                                    + " "
+                                    + mainPath
+                                    + ": #LINK 禁止调用 "
+                                    + resolvedSig
+                                    + "（定义于 "
+                                    + implPath
+                                    + "）");
+                }
+            }
         }
         return target;
     }
@@ -875,13 +1214,14 @@ public final class SemanticBinder {
             InterpreterAuditLog audit,
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
+            ProgramLinkIndex linkIndex,
             FunctionSignature currentSig) {
         if (arg instanceof Expr.Literal lit) {
             String lex = lit.lexeme();
             if (lex.startsWith("\"")) {
                 return "string";
             }
-            if (lex.length() >= 3 && lex.startsWith("'") && lex.endsWith("'")) {
+            if (lex.length() >= 2 && lex.startsWith("'") && lex.endsWith("'")) {
                 try {
                     CharLiteralParser.parseCharLexeme(lex);
                     return "char";
@@ -913,10 +1253,27 @@ public final class SemanticBinder {
             throw new ObrException(E_SEM_TYPE_INFER_LITERAL + " " + mainPath + ": 无法推断字面量类型: " + lex);
         }
         if (arg instanceof Expr.NameRef n) {
-            VarInfo vi = resolveNameForUse(mainPath, n.name(), scopes, fileStatics, currentSig);
+            VarInfo vi = resolveNameForUse(mainPath, n.name(), scopes, fileStatics, currentSig, linkIndex);
             if (vi == null) {
                 throw new ObrException(E_SEM_TYPE_INFER_NAME + " " + mainPath + ": 未知标识符（无法推断类型）: " + n.name());
             }
+            return vi.typeKeyword;
+        }
+        if (arg instanceof Expr.Assign a) {
+            checkAssignSemantics(
+                    mainPath,
+                    callerRel,
+                    a.name(),
+                    a.op(),
+                    a.value(),
+                    scopes,
+                    decls,
+                    audit,
+                    runId,
+                    fileStatics,
+                    currentSig,
+                    linkIndex);
+            VarInfo vi = resolveNameForUse(mainPath, a.name(), scopes, fileStatics, currentSig, linkIndex);
             return vi.typeKeyword;
         }
         if (arg instanceof Expr.Invoke inv) {
@@ -930,7 +1287,8 @@ public final class SemanticBinder {
                             audit,
                             runId,
                             fileStatics,
-                            currentSig);
+                            currentSig,
+                            linkIndex);
             String ret = target.decl().returnType().keywordLexeme();
             if ("void".equals(ret)) {
                 throw new ObrException(
@@ -940,7 +1298,7 @@ public final class SemanticBinder {
         }
         if (arg instanceof Expr.Unary u) {
             return inferUnaryType(
-                    mainPath, u, scopes, decls, callerRel, audit, runId, fileStatics, currentSig);
+                    mainPath, u, scopes, decls, callerRel, audit, runId, fileStatics, linkIndex, currentSig);
         }
         if (arg instanceof Expr.Conditional cond) {
             String tc =
@@ -953,6 +1311,7 @@ public final class SemanticBinder {
                             audit,
                             runId,
                             fileStatics,
+                            linkIndex,
                             currentSig);
             if (!allowsLogicalNotOperand(tc)) {
                 throw new ObrException(
@@ -968,6 +1327,7 @@ public final class SemanticBinder {
                             audit,
                             runId,
                             fileStatics,
+                            linkIndex,
                             currentSig);
             String t2 =
                     inferType(
@@ -979,6 +1339,7 @@ public final class SemanticBinder {
                             audit,
                             runId,
                             fileStatics,
+                            linkIndex,
                             currentSig);
             if (!t1.equals(t2)) {
                 throw new ObrException(
@@ -994,15 +1355,15 @@ public final class SemanticBinder {
         }
         if (arg instanceof Expr.Binary b) {
             return inferBinaryType(
-                    mainPath, b, scopes, decls, callerRel, audit, runId, fileStatics, currentSig);
+                    mainPath, b, scopes, decls, callerRel, audit, runId, fileStatics, linkIndex, currentSig);
         }
         if (arg instanceof Expr.PrefixUpdate p) {
             return inferPrefixUpdateType(
-                    mainPath, p, scopes, decls, callerRel, audit, runId, fileStatics, currentSig);
+                    mainPath, p, scopes, decls, callerRel, audit, runId, fileStatics, linkIndex, currentSig);
         }
         if (arg instanceof Expr.Postfix p) {
             return inferPostfixType(
-                    mainPath, p, scopes, decls, callerRel, audit, runId, fileStatics, currentSig);
+                    mainPath, p, scopes, decls, callerRel, audit, runId, fileStatics, linkIndex, currentSig);
         }
         throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 不支持的实参表达式类型");
     }
@@ -1016,6 +1377,7 @@ public final class SemanticBinder {
             InterpreterAuditLog audit,
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
+            ProgramLinkIndex linkIndex,
             FunctionSignature currentSig) {
         String t =
                 inferType(
@@ -1027,6 +1389,7 @@ public final class SemanticBinder {
                         audit,
                         runId,
                         fileStatics,
+                        linkIndex,
                         currentSig);
         return switch (u.op()) {
             case POS, NEG -> {
@@ -1043,8 +1406,9 @@ public final class SemanticBinder {
                 yield "boolean";
             }
             case BITNOT -> {
-                if (!"int".equals(t) && !"long".equals(t)) {
-                    throw new ObrException(E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": ~ 仅支持 int/long，实际 " + t);
+                if (!NumericExprTyping.isNumericPrimitive(t)) {
+                    throw new ObrException(
+                            E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": ~ 须为数值类型，实际 " + t);
                 }
                 yield "int";
             }
@@ -1060,6 +1424,7 @@ public final class SemanticBinder {
             InterpreterAuditLog audit,
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
+            ProgramLinkIndex linkIndex,
             FunctionSignature currentSig) {
         String t1 =
                 inferType(
@@ -1071,6 +1436,7 @@ public final class SemanticBinder {
                         audit,
                         runId,
                         fileStatics,
+                        linkIndex,
                         currentSig);
         String t2 =
                 inferType(
@@ -1082,6 +1448,7 @@ public final class SemanticBinder {
                         audit,
                         runId,
                         fileStatics,
+                        linkIndex,
                         currentSig);
         return switch (b.op()) {
             case EQ, NE -> inferEqualityType(mainPath, b.op(), t1, t2);
@@ -1090,7 +1457,21 @@ public final class SemanticBinder {
             case POW -> inferPowType(mainPath, t1, t2);
             case ADD -> inferAddType(mainPath, t1, t2);
             case SUB, MUL, DIV, MOD -> inferArithmeticType(mainPath, b.op(), t1, t2);
+            case BIT_AND, BIT_OR, BIT_XOR, SHL, SHR, USHR -> inferBitwiseOrShiftType(mainPath, t1, t2);
         };
+    }
+
+    /** 位运算与移位：结果类型 {@code int}（见 {@code docs/obr/operators.md} §7）。 */
+    private static String inferBitwiseOrShiftType(Path mainPath, String t1, String t2) {
+        if (!NumericExprTyping.isNumericPrimitive(t1) || !NumericExprTyping.isNumericPrimitive(t2)) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 位运算/移位须为数值类型: " + t1 + " 与 " + t2);
+        }
+        if (NumericExprTyping.illegalByteMix(t1, t2)) {
+            throw new ObrException(
+                    E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 禁止 byte 与其它数值混用: " + t1 + " 与 " + t2);
+        }
+        return "int";
     }
 
     private static String inferEqualityType(
@@ -1236,12 +1617,13 @@ public final class SemanticBinder {
             InterpreterAuditLog audit,
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
+            ProgramLinkIndex linkIndex,
             FunctionSignature currentSig) {
         if (!(p.operand() instanceof Expr.NameRef n)) {
             throw new ObrException(
                     E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": 前缀 ++/-- 仅适用于变量");
         }
-        VarInfo vi = resolveNameForUse(mainPath, n.name(), scopes, fileStatics, currentSig);
+        VarInfo vi = resolveNameForUse(mainPath, n.name(), scopes, fileStatics, currentSig, linkIndex);
         if (vi == null) {
             throw new ObrException(
                     E_SEM_TYPE_INFER_NAME + " " + mainPath + ": 前缀 ++/-- 时未知标识符: " + n.name());
@@ -1262,12 +1644,13 @@ public final class SemanticBinder {
             InterpreterAuditLog audit,
             String runId,
             Map<String, List<FileStaticRegistry.Slot>> fileStatics,
+            ProgramLinkIndex linkIndex,
             FunctionSignature currentSig) {
         if (!(p.operand() instanceof Expr.NameRef n)) {
             throw new ObrException(
                     E_SEM_TYPE_INFER_EXPR + " " + mainPath + ": ++/-- 仅适用于变量");
         }
-        VarInfo vi = resolveNameForUse(mainPath, n.name(), scopes, fileStatics, currentSig);
+        VarInfo vi = resolveNameForUse(mainPath, n.name(), scopes, fileStatics, currentSig, linkIndex);
         if (vi == null) {
             throw new ObrException(
                     E_SEM_TYPE_INFER_NAME + " " + mainPath + ": ++/-- 时未知标识符: " + n.name());

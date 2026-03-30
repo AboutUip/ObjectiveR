@@ -29,8 +29,8 @@
 | 逻辑点 | 文档 | 源码 |
 |--------|------|------|
 | 记号种类、关键字、预处理整行 | [lexing.md](lexing.md) | `TokenKind`、`Lexer` |
-| `==` `!=` `<` `<=` `>` `>=` `&&` `||` `?`、`if`/`else`；单 `&` / 单 `|` 报错 | [lexing.md](lexing.md) | `Lexer` |
-| `char` 字面量校验 | [lexing.md](lexing.md)、[supporting.md](supporting.md) | `CharLiteralParser` |
+| `==` `!=` `<` `<=` `>` `>=` `<<` `>>` `>>>` `&` `|` `^` `&&` `||` `?`、`if`/`else`/`while`/`break`/`continue` | [lexing.md](lexing.md) | `Lexer` |
+| `char` 字面量（含 `''` ≡ `'\0'`） | [lexing.md](lexing.md)、[implementation-scope.md](implementation-scope.md) | `Lexer#readCharLiteral`、`CharLiteralParser` |
 | `Token` 记录字段 | [supporting.md](supporting.md) | `Token` |
 
 ---
@@ -39,8 +39,9 @@
 
 | 逻辑点 | 文档 | 源码 |
 |--------|------|------|
-| `TokenCursor`、`parseObrFile` / `parseMrFile`、语句分支表（含 `if`、空 `;`） | [parsing.md](parsing.md) | `TokenCursor`、`Parser` |
-| 表达式优先级（`?:`、`||`、`&&`、相等/关系、算术…） | [parsing.md](parsing.md) | `Parser`（`parseConditional` 等） |
+| `TokenCursor`、`parseObrFile` / `parseMrFile`、语句分支（`if`/`while`/`break`/`continue`、表达式语句） | [parsing.md](parsing.md) | `TokenCursor`、`Parser` |
+| 表达式：`parseAssignment` → `parseConditional`（`?:` 的 `:` 后为 `parseAssignment`）→ … | [parsing.md](parsing.md) | `Parser` |
+| `Stmt.Expression`（`Expr`）、`Expr.Assign` | [ast-reference.md](ast-reference.md)、[parsing.md](parsing.md) | `Stmt`、`Expr` |
 | 全部 `Expr` / `Stmt` / 顶层项字段与枚举 | [ast-reference.md](ast-reference.md) | `ast` 包下各 `record` / `sealed interface` |
 
 ---
@@ -61,6 +62,9 @@
 | 逻辑点 | 文档 | 源码 |
 |--------|------|------|
 | `bindObrFile`、作用域、`return`、调用检查 | [semantic-binding.md](semantic-binding.md) | `SemanticBinder` |
+| `checkAssignSemantics`、`Expr.Assign` 与 `Stmt.Assign` | [semantic-binding.md](semantic-binding.md) | `SemanticBinder` |
+| `checkExprStmtExpr`（表达式语句整树；`void` 调用仅深度 0） | [semantic-binding.md](semantic-binding.md) | `SemanticBinder` |
+| `loopDepth`、`break`/`continue` | [semantic-binding.md](semantic-binding.md)、[errors.md](errors.md) | `SemanticBinder` |
 | 表达式类型推断（相等/关系/逻辑、`?:`、`+` 拼接、byte 混用等） | [semantic-binding.md](semantic-binding.md)、[implementation-scope.md](implementation-scope.md) | `SemanticBinder`、`NumericExprTyping` |
 | `FileStaticRegistry.collect`、`Slot`、同函数重复 static | [semantic-binding.md](semantic-binding.md) | `FileStaticRegistry` |
 | 程序级合并 `mergeProgramFileStatics` | [semantic-binding.md](semantic-binding.md) | `SemanticBinder` |
@@ -73,10 +77,11 @@
 | 逻辑点 | 文档 | 源码 |
 |--------|------|------|
 | `executeMain`、合并定义、`call`、`std::rout` | [execution.md](execution.md) | `RuntimeExecutor` |
-| `if` / 空语句、`evalExpr`（短路、比较、拼接、整型除零 `E_RT_INTEGER_DIV_ZERO`） | [execution.md](execution.md)、[implementation-scope.md](implementation-scope.md) | `RuntimeExecutor` |
-| void 尾调用（TCO）、`maxCallDepth` / `E_RT_STACK_OVERFLOW` | [execution.md](execution.md)、[errors.md](errors.md)、[`docs/obr/runtime.md`](../obr/runtime.md) §5.2 | `RuntimeExecutor#call`、`#executeStmtsWithTail` |
+| `if` / `while` / `break`/`continue`、`evalExprStmtDiscard`、`evalAssignExpression` | [execution.md](execution.md) | `RuntimeExecutor` |
+| `evalExpr`（短路、比较、`string` 引用相等、拼接、位运算、整型除零 `E_RT_INTEGER_DIV_ZERO`） | [execution.md](execution.md)、[implementation-scope.md](implementation-scope.md) | `RuntimeExecutor` |
+| void 尾调用（TCO）、`maxCallDepth` / `E_RT_STACK_OVERFLOW` | [execution.md](execution.md)、[errors.md](errors.md)、[`docs/obr/runtime.md`](../obr/runtime.md) §5.2 | `RuntimeExecutor#call`、`#executeStmtsWithTail`、`#tryResolveVoidTailCall` |
 | `Value` / `ValueType`、`Env`、`StaticStore`、`Frame`、栈 | [runtime-model.md](runtime-model.md) | `RuntimeExecutor`（内部类型） |
-| 语句/表达式求值分支（与 AST 对应） | [execution.md](execution.md) | `RuntimeExecutor#executeStmtWithoutBlock`、`#evalExpr` 等 |
+| 语句/表达式求值分支（与 AST 对应） | [execution.md](execution.md) | `RuntimeExecutor#executeStmtWithoutBlock`、`#evalExpr` |
 
 ---
 

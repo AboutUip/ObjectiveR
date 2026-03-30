@@ -19,7 +19,7 @@
 | 路径 | 内容 |
 |:--|:--|
 | **[`obr/`](obr/README.md)** | ObjectiveR 语言规范（专题拆分） |
-| **[`blink/`](blink/README.md)** | BlinkEngine Java 实现（管线、追溯、错误码、源码对照） |
+| **[`blink/`](blink/README.md)** | BlinkEngine：[`README`](blink/README.md)、[`logic-index`](blink/logic-index.md)、[`implementation-scope`](blink/implementation-scope.md)、[`inventory`](blink/inventory.md) |
 | **[`assets/`](assets/README.md)** | 徽标与矢量资源（`obr-logo.svg` 等，README/文档直接引用） |
 
 **编辑器扩展**（与解释器分仓打包）：[`Expansion/README.md`](../Expansion/README.md)

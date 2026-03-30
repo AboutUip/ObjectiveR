@@ -17,9 +17,9 @@ Blink 的回归与单元测试位于 **`src/test/java/`**；与主包 `com.kitep
 
 | 测试类 | 主要覆盖 |
 |--------|----------|
-| **`BlinkRuntimeE2ETest`** | 端到端：`if`/`else if`、空 `;`、`?:`、比较与相等、`&&`/`||` 短路、字符串拼接与 `+=`、整型除零/`E_RT_INTEGER_DIV_ZERO`、浮点除零不抛整型除零码 |
-| **`BlinkSemanticNegativeTest`** | 语义拒绝：如相等两侧类型不一致、`?:` 两分支类型不一致 |
-| **`BlinkLexerParserTest`** | 词法：单 `&` / 单 `|` 报错；语法：`if` 与 `?:` 的 AST |
+| **`BlinkRuntimeE2ETest`** | 端到端：上列 + 表达式语句、三元分支内 `+=`、`"" == ""` 引用相等、`while`/`break`/`continue`、位运算与整型除零等 |
+| **`BlinkSemanticNegativeTest`** | 语义拒绝：相等/`?:`、`while` 块外 `break`/`continue`、`byte` 混用等 |
+| **`BlinkLexerParserTest`** | 词法：`&`/`|`/`^`/`<<`/`>>`/`>>>` 与 `&&`/`||` 区分；语法：`if` 与 `?:` 的 AST |
 | **`NumericExprTypingTest`** | `NumericExprTyping`（byte 混用、提升、幂结果类型） |
 
 ### 测试夹具

@@ -160,12 +160,22 @@ public final class RuntimeExecutor {
      * 由 {@link #call} 外层循环承接）。
      */
     private sealed interface StmtExecResult
-            permits StmtExecResult.Done, StmtExecResult.ReturnedVal, StmtExecResult.TailVoidCall {
+            permits StmtExecResult.Done,
+                    StmtExecResult.ReturnedVal,
+                    StmtExecResult.TailVoidCall,
+                    StmtExecResult.BreakLoop,
+                    StmtExecResult.ContinueLoop {
         record Done() implements StmtExecResult {}
 
         record ReturnedVal(Value value) implements StmtExecResult {}
 
         record TailVoidCall(String qn, List<Value> args, String callerFile) implements StmtExecResult {}
+
+        /** 跳出最近一层 {@code while}（由循环语句消费）。 */
+        record BreakLoop() implements StmtExecResult {}
+
+        /** 进入最近一层 {@code while} 的下一轮条件判断（由循环语句消费）。 */
+        record ContinueLoop() implements StmtExecResult {}
     }
 
     private record LocalBinding(String typeKeyword, Value value) {}
@@ -387,6 +397,14 @@ public final class RuntimeExecutor {
                     }
                     return null;
                 }
+                case StmtExecResult.BreakLoop bl -> {
+                    throw new ObrException(
+                            E_RT_EXPR_UNSUPPORTED + " break/continue 未由循环捕获（语义阶段应已拦截）");
+                }
+                case StmtExecResult.ContinueLoop cl -> {
+                    throw new ObrException(
+                            E_RT_EXPR_UNSUPPORTED + " break/continue 未由循环捕获（语义阶段应已拦截）");
+                }
             }
         }
     }
@@ -411,7 +429,10 @@ public final class RuntimeExecutor {
                     StmtExecResult br =
                             executeStmtsWithTail(
                                     blk.body().statements(), env, statics, calleeFile, declaredRet, voidFn);
-                    if (br instanceof StmtExecResult.TailVoidCall || br instanceof StmtExecResult.ReturnedVal) {
+                    if (br instanceof StmtExecResult.TailVoidCall
+                            || br instanceof StmtExecResult.ReturnedVal
+                            || br instanceof StmtExecResult.BreakLoop
+                            || br instanceof StmtExecResult.ContinueLoop) {
                         return br;
                     }
                 } finally {
@@ -420,9 +441,9 @@ public final class RuntimeExecutor {
                 continue;
             }
 
-            if (last && voidFn && s instanceof Stmt.Expression se) {
+            if (last && voidFn && s instanceof Stmt.Expression se && se.expr() instanceof Expr.Invoke inv) {
                 Optional<StmtExecResult.TailVoidCall> tail =
-                        tryResolveVoidTailCall(se.call(), env, statics, calleeFile);
+                        tryResolveVoidTailCall(inv.call(), env, statics, calleeFile);
                 if (tail.isPresent()) {
                     return tail.get();
                 }
@@ -433,6 +454,12 @@ public final class RuntimeExecutor {
                 return r;
             }
             if (r instanceof StmtExecResult.TailVoidCall) {
+                return r;
+            }
+            if (r instanceof StmtExecResult.BreakLoop) {
+                return r;
+            }
+            if (r instanceof StmtExecResult.ContinueLoop) {
                 return r;
             }
         }
@@ -474,7 +501,7 @@ public final class RuntimeExecutor {
             Stmt s, Env env, StaticStore statics, String calleeFile, String declaredRet, boolean voidFn) {
         switch (s) {
             case Stmt.Expression exp -> {
-                executeCall(exp.call(), env, statics, calleeFile);
+                evalExprStmtDiscard(exp.expr(), env, statics, calleeFile);
                 return new StmtExecResult.Done();
             }
             case Stmt.Return ret -> {
@@ -490,47 +517,7 @@ public final class RuntimeExecutor {
             }
             case Stmt.Block ignored -> throw new AssertionError("Block handled in executeStmtsWithTail");
             case Stmt.Assign as -> {
-                String ty = resolveDeclaredType(as.name(), env, statics, calleeFile);
-                if (ty == null) {
-                    throw new ObrException(E_RT_NAME_UNKNOWN + " 赋值时未知变量: " + as.name());
-                }
-                if (as.op() == Stmt.AssignOp.ASSIGN) {
-                    Value rhs = evalExpr(as.value(), env, statics, calleeFile);
-                    assignWithForeign(as.name(), widenReturnValue(ty, rhs), env, statics, calleeFile);
-                    return new StmtExecResult.Done();
-                }
-                if (as.op() == Stmt.AssignOp.ADD_ASSIGN && "string".equals(ty)) {
-                    Value cur = getValueForName(as.name(), env, statics, calleeFile);
-                    if (cur == null || cur.type() == ValueType.UNDEFINED) {
-                        throw new ObrException(E_RT_COMPOUND_UNINIT + " string += 时变量未初始化: " + as.name());
-                    }
-                    if (cur.type() != ValueType.STRING) {
-                        throw new ObrException(E_RT_EXPR_UNSUPPORTED + " string += 期望 string");
-                    }
-                    Value rhs = evalExpr(as.value(), env, statics, calleeFile);
-                    assignWithForeign(
-                            as.name(),
-                            Value.ofString(cur.asString() + valueToConcatString(rhs)),
-                            env,
-                            statics,
-                            calleeFile);
-                    return new StmtExecResult.Done();
-                }
-                Value cur = requireNumericForCompound(as.name(), env, statics, calleeFile);
-                Value rhs = evalExpr(as.value(), env, statics, calleeFile);
-                if (cur.type() != rhs.type()) {
-                    throw new ObrException(E_RT_EXPR_UNSUPPORTED + " 复合赋值两侧运行时类型须一致");
-                }
-                Value combined =
-                        switch (as.op()) {
-                            case ADD_ASSIGN -> evalArithmetic(cur, rhs, 0);
-                            case SUB_ASSIGN -> evalArithmetic(cur, rhs, 1);
-                            case MUL_ASSIGN -> evalArithmetic(cur, rhs, 2);
-                            case DIV_ASSIGN -> evalDiv(cur, rhs);
-                            case MOD_ASSIGN -> evalMod(cur, rhs);
-                            case ASSIGN -> throw new AssertionError();
-                        };
-                assignWithForeign(as.name(), widenReturnValue(ty, combined), env, statics, calleeFile);
+                evalAssignExpression(as.name(), as.op(), as.value(), env, statics, calleeFile);
                 return new StmtExecResult.Done();
             }
             case Stmt.Update up -> {
@@ -555,6 +542,45 @@ public final class RuntimeExecutor {
                     return executeBranch(ifs.elseStmtOrNull(), env, statics, calleeFile, declaredRet, voidFn);
                 }
                 return new StmtExecResult.Done();
+            }
+            case Stmt.While ws -> {
+                while (true) {
+                    Value c = evalExpr(ws.cond(), env, statics, calleeFile);
+                    if (!truthy(c)) {
+                        return new StmtExecResult.Done();
+                    }
+                    StmtExecResult br;
+                    if (ws.body() instanceof Stmt.Block) {
+                        br = executeBranch(ws.body(), env, statics, calleeFile, declaredRet, voidFn);
+                    } else {
+                        env.push();
+                        try {
+                            br =
+                                    executeStmtWithoutBlock(
+                                            ws.body(), env, statics, calleeFile, declaredRet, voidFn);
+                        } finally {
+                            env.pop();
+                        }
+                    }
+                    if (br instanceof StmtExecResult.ReturnedVal) {
+                        return br;
+                    }
+                    if (br instanceof StmtExecResult.TailVoidCall) {
+                        return br;
+                    }
+                    if (br instanceof StmtExecResult.ContinueLoop) {
+                        continue;
+                    }
+                    if (br instanceof StmtExecResult.BreakLoop) {
+                        return new StmtExecResult.Done();
+                    }
+                }
+            }
+            case Stmt.Break() -> {
+                return new StmtExecResult.BreakLoop();
+            }
+            case Stmt.Continue() -> {
+                return new StmtExecResult.ContinueLoop();
             }
             case Stmt.Nop n -> {
                 return new StmtExecResult.Done();
@@ -870,14 +896,70 @@ public final class RuntimeExecutor {
         call(qn, args, callerFile);
     }
 
+    /** 表达式语句：顶层 void 调用走 {@link #executeCall}，其余求值后丢弃。 */
+    private void evalExprStmtDiscard(Expr e, Env env, StaticStore statics, String callerFile) {
+        if (e instanceof Expr.Invoke inv) {
+            executeCall(inv.call(), env, statics, callerFile);
+        } else {
+            evalExpr(e, env, statics, callerFile);
+        }
+    }
+
+    /** 赋值/复合赋值；返回写入后的值（与语句级赋值一致）。 */
+    private Value evalAssignExpression(
+            String name, Stmt.AssignOp op, Expr valueExpr, Env env, StaticStore statics, String callerFile) {
+        String ty = resolveDeclaredType(name, env, statics, callerFile);
+        if (ty == null) {
+            throw new ObrException(E_RT_NAME_UNKNOWN + " 赋值时未知变量: " + name);
+        }
+        if (op == Stmt.AssignOp.ASSIGN) {
+            Value rhs = evalExpr(valueExpr, env, statics, callerFile);
+            Value out = widenReturnValue(ty, rhs);
+            assignWithForeign(name, out, env, statics, callerFile);
+            return out;
+        }
+        if (op == Stmt.AssignOp.ADD_ASSIGN && "string".equals(ty)) {
+            Value cur = getValueForName(name, env, statics, callerFile);
+            if (cur == null || cur.type() == ValueType.UNDEFINED) {
+                throw new ObrException(E_RT_COMPOUND_UNINIT + " string += 时变量未初始化: " + name);
+            }
+            if (cur.type() != ValueType.STRING) {
+                throw new ObrException(E_RT_EXPR_UNSUPPORTED + " string += 期望 string");
+            }
+            Value rhs = evalExpr(valueExpr, env, statics, callerFile);
+            Value out = Value.ofString(cur.asString() + valueToConcatString(rhs));
+            assignWithForeign(name, out, env, statics, callerFile);
+            return out;
+        }
+        Value cur = requireNumericForCompound(name, env, statics, callerFile);
+        Value rhs = evalExpr(valueExpr, env, statics, callerFile);
+        if (cur.type() != rhs.type()) {
+            throw new ObrException(E_RT_EXPR_UNSUPPORTED + " 复合赋值两侧运行时类型须一致");
+        }
+        Value combined =
+                switch (op) {
+                    case ADD_ASSIGN -> evalArithmetic(cur, rhs, 0);
+                    case SUB_ASSIGN -> evalArithmetic(cur, rhs, 1);
+                    case MUL_ASSIGN -> evalArithmetic(cur, rhs, 2);
+                    case DIV_ASSIGN -> evalDiv(cur, rhs);
+                    case MOD_ASSIGN -> evalMod(cur, rhs);
+                    case ASSIGN -> throw new AssertionError();
+                };
+        Value out = widenReturnValue(ty, combined);
+        assignWithForeign(name, out, env, statics, callerFile);
+        return out;
+    }
+
     private Value evalExpr(Expr e, Env env, StaticStore statics, String callerFile) {
         if (e instanceof Expr.Literal lit) {
             String lex = lit.lexeme();
-            if (lex.length() >= 3 && lex.startsWith("'") && lex.endsWith("'")) {
+            if (lex.length() >= 2 && lex.startsWith("'") && lex.endsWith("'")) {
                 return Value.ofChar(CharLiteralParser.parseCharLexeme(lex));
             }
             if (lex.startsWith("\"") && lex.endsWith("\"") && lex.length() >= 2) {
-                return Value.ofString(lex.substring(1, lex.length() - 1));
+                // 规范：string 的 == 为引用相等；字面量每次求值须为独立实例（不驻留），故 `"" == ""` 为假。
+                String content = lex.substring(1, lex.length() - 1);
+                return Value.ofString(new String(content));
             }
             if (lex.matches("^[0-9]+[lL]$")) {
                 return Value.ofLong(Long.parseLong(lex.substring(0, lex.length() - 1)));
@@ -909,6 +991,9 @@ public final class RuntimeExecutor {
                 throw new ObrException(E_RT_NAME_UNKNOWN + " 运行时未知变量: " + n.name());
             }
             return v;
+        }
+        if (e instanceof Expr.Assign a) {
+            return evalAssignExpression(a.name(), a.op(), a.value(), env, statics, callerFile);
         }
         if (e instanceof Expr.Invoke inv) {
             String qn = String.join("::", inv.call().callee().segments());
@@ -997,6 +1082,53 @@ public final class RuntimeExecutor {
             case ADD -> evalAdd(b, env, statics, callerFile);
             case SUB, MUL, DIV, MOD -> evalBinaryNumeric(b, env, statics, callerFile);
             case POW -> evalPowExpr(b, env, statics, callerFile);
+            case BIT_AND, BIT_OR, BIT_XOR, SHL, SHR, USHR ->
+                    evalBitwiseOrShift(b, env, statics, callerFile);
+        };
+    }
+
+    /** ECMAScript {@code ToInt32}（与 {@code docs/obr/operators.md} §7 一致）。 */
+    private static int toInt32(double d) {
+        if (Double.isNaN(d) || d == 0.0 || Double.isInfinite(d)) {
+            return 0;
+        }
+        double d2 = Math.signum(d) * Math.floor(Math.abs(d));
+        long l = (long) d2;
+        return (int) (l & 0xFFFFFFFFL);
+    }
+
+    /** ECMAScript {@code ToUint32}。 */
+    private static long toUint32(double d) {
+        if (Double.isNaN(d) || d == 0.0 || Double.isInfinite(d)) {
+            return 0L;
+        }
+        double d2 = Math.signum(d) * Math.floor(Math.abs(d));
+        long l = (long) d2;
+        return l & 0xFFFFFFFFL;
+    }
+
+    private Value evalBitwiseOrShift(Expr.Binary b, Env env, StaticStore statics, String callerFile) {
+        Value left = evalExpr(b.left(), env, statics, callerFile);
+        Value right = evalExpr(b.right(), env, statics, callerFile);
+        double dl = valueToDouble(left);
+        double dr = valueToDouble(right);
+        return switch (b.op()) {
+            case BIT_AND -> Value.ofInt(toInt32(dl) & toInt32(dr));
+            case BIT_OR -> Value.ofInt(toInt32(dl) | toInt32(dr));
+            case BIT_XOR -> Value.ofInt(toInt32(dl) ^ toInt32(dr));
+            case SHL -> {
+                int sc = (int) (toUint32(dr) & 31L);
+                yield Value.ofInt(toInt32(dl) << sc);
+            }
+            case SHR -> {
+                int sc = (int) (toUint32(dr) & 31L);
+                yield Value.ofInt(toInt32(dl) >> sc);
+            }
+            case USHR -> {
+                int sc = (int) (toUint32(dr) & 31L);
+                yield Value.ofInt((int) (toUint32(dl) >>> sc));
+            }
+            default -> throw new AssertionError();
         };
     }
 
@@ -1402,9 +1534,10 @@ public final class RuntimeExecutor {
     }
 
     private static Value evalUnaryBitNot(Value v) {
-        int bits =
-                v.type() == ValueType.LONG ? (int) v.longValue() : v.intValue();
-        return Value.ofInt(~bits);
+        if (!isNumeric(v)) {
+            throw new ObrException(E_RT_EXPR_UNSUPPORTED + " ~ 须为数值");
+        }
+        return Value.ofInt(~toInt32(valueToDouble(v)));
     }
 
     private static boolean isNumeric(Value v) {

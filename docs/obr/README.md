@@ -24,7 +24,7 @@
 
 **上级目录**：[docs 说明](../README.md)
 
-**实现文档**：[Blink 索引](../blink/README.md) · **编辑器扩展**：[Expansion](../../Expansion/README.md)
+**实现文档**：[Blink 索引](../blink/README.md) · [实现范围](../blink/implementation-scope.md) · [逻辑速查](../blink/logic-index.md) · **编辑器扩展**：[Expansion](../../Expansion/README.md)
 
 ## 维护原则
 

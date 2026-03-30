@@ -147,6 +147,18 @@ public final class FileStaticRegistry {
                 register(file, obrPath, sm.name(), ty, owner, VarVisibility.PUBLIC_STATIC);
             }
             case Stmt.Block blk -> scanBlock(blk.body(), owner, file, obrPath, locals);
+            case Stmt.While w -> {
+                if (w.body() instanceof Stmt.Block blk) {
+                    scanBlock(blk.body(), owner, file, obrPath, locals);
+                } else {
+                    locals.push();
+                    try {
+                        scanStmt(w.body(), owner, file, obrPath, locals);
+                    } finally {
+                        locals.pop();
+                    }
+                }
+            }
             default -> {
                 /* Expression / Return / Assign：无 static 登记 */
             }
